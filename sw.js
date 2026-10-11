@@ -1,10 +1,20 @@
 /* Fuse Run service worker.
    RELEASING AN UPDATE: bump VERSION here AND in game.js, then upload the files.
    Players keep playing the version they have; they get a dot on Settings and choose when to install the update. */
-const VERSION = '1.2.0';
+const VERSION = '1.2.3';
 const CACHE = 'fuse-run-' + VERSION;
-const SHELL = ['./', 'index.html', 'style.css', 'game.js', 'pwa.js', 'manifest.webmanifest',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
+const SHELL = [
+  '/Fuse-Run/',
+  '/Fuse-Run/index.html',
+  '/Fuse-Run/style.css',
+  '/Fuse-Run/game.js',
+  '/Fuse-Run/pwa.js',
+  '/Fuse-Run/manifest.webmanifest',
+  '/Fuse-Run/icons/icon-192.png',
+  '/Fuse-Run/icons/icon-512.png',
+  '/Fuse-Run/icons/icon-maskable-512.png',
+  '/Fuse-Run/icons/apple-touch-icon.png'
+];
 
 // Install: download the whole game into a version-named cache (bypassing the browser's HTTP cache).
 // No skipWaiting() here, so a new version never replaces the old one in the middle of a game.
@@ -34,6 +44,6 @@ self.addEventListener('fetch', e => {
     caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(res => {
       if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
-    })).catch(() => (req.mode === 'navigate' ? caches.match('index.html') : Response.error()))
+    })).catch(() => (req.mode === 'navigate' ? caches.match('/Fuse-Run/index.html') : Response.error()))
   );
 });
