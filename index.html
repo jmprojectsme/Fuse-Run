@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Fuse Run V1.2.0</title>
+<link rel="stylesheet" href="style.css">
+<meta name="theme-color" content="#1d2340">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fuse Run">
+</head>
+<body>
+<main class="cabinet">
+  <header class="hud">
+    <span>Score <b id="score">0</b></span>
+    <span>Lives <b id="lives">3</b></span>
+    <span>Stage <b id="level">1-1</b></span>
+    <span>Time <b id="time">3:00</b></span>
+    <span>Bombs <b id="bombs">1</b></span>
+    <span>Range <b id="range">2</b></span>
+    <span>Key <b id="keyv">No</b></span>
+    <span>Coins <b id="coinsv">0</b></span>
+  </header>
+
+  <div class="screen">
+    <canvas id="game"></canvas>
+    <button id="menuBtn" class="mute" type="button" aria-label="Open menu">&#9776; Menu</button>
+    <div id="overlay" class="overlay hidden">
+      <h1 id="ovTitle">Fuse Run</h1>
+      <p id="ovText">Blast the crates, clear the creatures, find the exit.<br>Arrows / WASD to move &middot; Space to bomb</p>
+      <button id="startBtn">Press Enter to start</button>
+      <button id="toMenu" class="ghost" type="button" style="display:none">Main menu</button>
+    </div>
+  </div>
+
+  <div class="pad" aria-label="Touch controls">
+    <div class="dpad" id="dpad">
+      <button data-key="up">&#9650;</button>
+      <button data-key="left">&#9664;</button>
+      <button data-key="down">&#9660;</button>
+      <button data-key="right">&#9654;</button>
+    </div>
+    <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
+    <div class="acts">
+      <button class="det-btn" id="detBtn" type="button">Boom</button>
+      <button class="bomb-btn" data-key="bomb">Bomb</button>
+    </div>
+  </div>
+</main>
+<div id="menu" class="menu">
+  <section class="msec" id="m-main">
+    <h1>Fuse Run</h1>
+    <p class="who" id="who"></p>
+    <button id="mResume" type="button" style="display:none">Resume</button>
+    <button id="mNew" type="button">New Game</button>
+    <button data-go="m-shop" type="button">Shop</button>
+    <button id="mDaily" data-go="m-daily" type="button">Daily Reward</button>
+    <button data-go="m-profile" type="button">Profile</button>
+    <button data-go="m-how" type="button">How to Play</button>
+    <button data-go="m-settings" type="button">Settings</button>
+    <small id="verTag"></small>
+  </section>
+
+  <section class="msec hidden" id="m-shop">
+    <h2>Shop</h2>
+    <div class="shopL">
+      <div class="stage"><canvas id="shopHero" width="180" height="200"></canvas></div>
+      <div class="wallet"><canvas id="coinIcon" width="34" height="34"></canvas><b id="shopCoins">0</b></div>
+      <p class="who" id="shopName"></p>
+    </div>
+    <div class="shopR">
+      <div class="tabs">
+        <button type="button" data-tab="style" class="on">Heroes</button>
+        <button type="button" data-tab="hat">Hats</button>
+        <button type="button" data-tab="face">Face</button>
+        <button type="button" data-tab="bomb">Bombs</button>
+      </div>
+      <div class="sgrid" id="shopGrid"></div>
+    </div>
+    <p class="small" id="shopMsg"></p>
+    <button class="ghost" data-go="m-main" type="button">Back</button>
+  </section>
+
+  <section class="msec hidden" id="m-daily">
+    <h2>Daily Reward</h2>
+    <div class="week" id="dailyWeek"></div>
+    <p class="small" id="dailyMsg"></p>
+    <button id="dClaim" type="button">Claim</button>
+    <button class="ghost" data-go="m-main" type="button">Back</button>
+  </section>
+
+  <section class="msec hidden" id="m-profile">
+    <h2>Profile</h2>
+    <input id="pName" type="text" maxlength="12" placeholder="Your name" autocomplete="off">
+    <p class="lbl">Suit colour</p>
+    <div class="swatches" id="swatches"></div>
+    <p class="stats" id="pStats"></p>
+    <button id="pSave" type="button">Save</button>
+    <button class="ghost" data-go="m-main" type="button">Back</button>
+  </section>
+
+  <section class="msec hidden" id="m-how">
+    <h2>How to Play</h2>
+    <ul id="legend"></ul>
+    <p class="small">Blast the crates to find the hidden key, defeat every creature, then unlock the exit. Power-ups reset every stage, and so do your lives (back to 3), but each stage hides a few in its crates. Careful: blasts destroy power-ups and skulls lying on the floor. A skull is a curse: slow legs, endless bombs or long fuses for a few seconds. Flames stay deadly for a moment, so wait for the embers.<br><br>Move: arrows / WASD or the pad<br>Bomb: Space or the Bomb button<br>Detonate: E or Boom<br>Menu: Esc or P<br><br>Collect coins from crates and defeated creatures, then spend them in the Shop on new characters, hats and accessories. Pick D-pad or Joystick in Settings.</p>
+    <button class="ghost" data-go="m-main" type="button">Back</button>
+  </section>
+
+  <section class="msec hidden" id="m-settings">
+    <h2>Settings</h2>
+    <button id="tSound" class="toggle" type="button"></button>
+    <button id="tMusic" class="toggle" type="button"></button>
+    <button id="tCtrl" class="toggle" type="button"></button>
+    <button id="tFlip" class="toggle" type="button"></button>
+    <button id="tInstall" type="button" style="display:none">Install app</button>
+    <button id="tUpdate" type="button" style="display:none">Check for updates</button>
+    <button data-go="m-dev" type="button">Developer info</button>
+    <p class="small" id="verLine"></p>
+    <button class="ghost" data-go="m-main" type="button">Back</button>
+  </section>
+
+  <section class="msec hidden" id="m-dev">
+    <h2>Developer info</h2>
+    <div class="info">
+      <p><b>Developer</b><br><span id="devName"></span></p>
+      <p><b>Version</b><br><span id="devVer"></span></p>
+      <p><b>Built with</b><br>HTML, CSS and vanilla JavaScript</p>
+      <p><b>What's new in V1.2.0</b></p>
+      <ul>
+        <li>Install it like an app and play offline (PWA)</li>
+        <li>Updates arrive when you choose: a dot appears on Settings</li>
+        <li>Your run is saved when an update reloads the game</li>
+      </ul>
+    </div>
+    <button class="ghost" data-go="m-settings" type="button">Back</button>
+  </section>
+</div>
+<script src="game.js"></script>
+<script src="pwa.js"></script>
+</body>
+</html>
