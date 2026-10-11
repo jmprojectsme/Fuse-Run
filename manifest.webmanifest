@@ -1,6 +1,6 @@
 {
   "name": "Fuse Run",
-  "short_name": "Fuse Run",
+  "short_name": "Fuse Run Arcade",
   "description": "A bomb-placing arcade adventure. Blast crates, find the key, escape the stage.",
   "id": "./",
   "start_url": "./index.html",
