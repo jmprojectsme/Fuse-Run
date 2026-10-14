@@ -1,7 +1,7 @@
 /* Fuse Run service worker.
    RELEASING AN UPDATE: bump VERSION here AND in game.js, then upload the files.
    Players keep playing the version they have; they get a dot on Settings and choose when to install the update. */
-const VERSION = '1.2.3';
+const VERSION = '1.2.4';
 const CACHE = 'fuse-run-' + VERSION;
 const SHELL = [
   '/Fuse-Run/',
