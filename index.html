@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Fuse Run V1.2.0</title>
+<title>Fuse Run</title>
 <link rel="stylesheet" href="style.css">
 <meta name="theme-color" content="#1d2340">
 <link rel="manifest" href="manifest.webmanifest">
@@ -129,17 +129,20 @@
       <p><b>Developer</b><br><span id="devName"></span></p>
       <p><b>Version</b><br><span id="devVer"></span></p>
       <p><b>Built with</b><br>HTML, CSS and vanilla JavaScript</p>
-      <p><b>What's new in V1.2.0</b></p>
+      <p><b>What's new in <span id="newVer"></span></b></p>
       <ul>
-        <li>Install it like an app and play offline (PWA)</li>
-        <li>Updates arrive when you choose: a dot appears on Settings</li>
-        <li>Your run is saved when an update reloads the game</li>
+        <li>Sharper graphics on high-resolution screens</li>
+        <li>Steadier music timing</li>
+        <li>Every stage starts with 3 lives; hearts add more (up to 5)</li>
+        <li>Fixed defeated creatures sometimes paying out twice</li>
+        <li>Damaged save data no longer breaks the game</li>
       </ul>
     </div>
     <button class="ghost" data-go="m-settings" type="button">Back</button>
   </section>
 </div>
-<script src="game.js"></script>
+<script src="version.js"></script>
+<script type="module" src="js/main.js"></script>
 <script src="pwa.js"></script>
 </body>
 </html>
