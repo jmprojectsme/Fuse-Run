@@ -4,7 +4,7 @@ import { G } from './state.js';
 import { ctx, view } from './view.js';
 import { S, board, skinArt, curSkin, drawHero, drawIcon, DEFAULT_LOOK } from './art.js';
 import { zone, bossName } from './worlds.js';
-import { pet, hasPerk, drawPet } from './pets.js';
+import { pet, hasPerk, drawPet, FLYERS } from './pets.js';
 
 const BOSS_LOOK = { garden: ['#3f9a4a', '#a5e67b'], sand: ['#c9a25a', '#ffe0a0'], ice: ['#4f9fd8', '#e8f8ff'], lava: ['#d9453d', '#ffd166'], current: ['#8a4a9a', '#ffb3e6'], storm: ['#46506e', '#ffe066'], neon: ['#c04fd0', '#4fe0ff'] };
 const ARROW = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -58,6 +58,54 @@ function drawMarks(time) {   // warnings: something is about to hit this tile
     }
     if (m.kind === 'bolt') { ctx.strokeStyle = `rgba(255,255,255,${k})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + T / 2, y + T / 2 - 40 * (1 - k)); ctx.lineTo(x + T / 2 - 6, y + T / 2); ctx.lineTo(x + T / 2 + 4, y + T / 2); ctx.lineTo(x + T / 2 - 2, y + T - 4); ctx.stroke(); }
   }
+}
+// ---------- the pet and its skills ----------
+const FACES_LEFT = ['pup', 'fox'];
+function drawPetOnBoard(time) {
+  const id = pet(), pp = G.petPos, P = G.P;
+  if (!id || !pp || G.state === 'title') return;
+  const fly = FLYERS.includes(id), moving = pp.hop > 0.2;
+  let flip = pp.flip, sx = 1, sy = 1, lift = fly ? 13 + Math.sin(time / 220) * 3 : pp.hop;
+  if (!moving && pp.idle > 1.2) {   // idle: turn to look at you, sit, and now and then do a happy jump
+    flip = P.x >= pp.x ? 1 : -1;
+    if (!fly) { const j = (pp.idle % 4); if (j > 3.4) lift = Math.sin((j - 3.4) / 0.6 * Math.PI) * 7; else { sx = 1.06; sy = 0.93; } }
+  } else if (!fly && moving) { const land = 1 - Math.abs(Math.sin(pp.step)); sy = 1 - land * 0.12; sx = 1 + land * 0.1; }   // squash on landing
+  if (FACES_LEFT.includes(id)) flip = -flip;
+  shadow(pp.x, pp.y + 12, fly ? 6 : Math.max(5, 8 - lift * 0.4));
+  if (id === 'phoenix' && !G.phoenixUsed) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 + Math.sin(time / 150) * 0.15; ctx.drawImage(S.glow, pp.x - 22, pp.y - 20 - lift, 44, 44); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+  ctx.save(); ctx.translate(pp.x, pp.y + 12 - lift); ctx.scale(flip * sx, sy);
+  if (id === 'phoenix' && G.phoenixUsed) ctx.globalAlpha = 0.55;   // resting after rising once
+  drawPet(ctx, id, 0, 0, time); ctx.restore(); ctx.globalAlpha = 1;
+  const mouthX = pp.x + (FACES_LEFT.includes(id) ? -flip : flip) * 0 + flip * 6, mouthY = pp.y - 2 - lift;
+  if (pp.tongue) {   // Froggy's tongue
+    const k = 1 - Math.abs(pp.tongue.t / 0.3 - 0.5) * 2, ex = mouthX + (pp.tongue.x - mouthX) * k, ey = mouthY + (pp.tongue.y - mouthY) * k;
+    ctx.strokeStyle = '#ff6f91'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(mouthX, mouthY); ctx.lineTo(ex, ey); ctx.stroke(); disc(ex, ey, 3.5, '#ff6f91'); ctx.lineCap = 'butt';
+  }
+  if (pp.bark > 0 && !P.key) {   // Puppy points at the key crate
+    const kx = G.keyPos.c * T + T / 2, ky = G.keyPos.r * T + T / 2, a = Math.atan2(ky - pp.y, kx - pp.x), d = 24 + Math.sin(time / 90) * 4;
+    ctx.save(); ctx.translate(pp.x + Math.cos(a) * d, pp.y - 6 + Math.sin(a) * d); ctx.rotate(a); ctx.globalAlpha = Math.min(1, pp.bark * 2);
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-4, -7); ctx.lineTo(-1, 0); ctx.lineTo(-4, 7); ctx.closePath(); ctx.fill(); ctx.restore(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = `rgba(255,209,102,${0.5 + Math.sin(time / 80) * 0.4})`; ctx.lineWidth = 3; ctx.strokeRect(G.keyPos.c * T + 3, G.keyPos.r * T + 3, T - 6, T - 6);
+  }
+  if (pp.breath > 0 && pp.bdir) {   // Mini Dragon's fire breath
+    const [dc, dr] = pp.bdir, k = pp.breath / 0.6;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 7; i++) { const f = (i / 7 + time / 400) % 1, sp = (Math.random() - 0.5) * 10 * f; ctx.globalAlpha = k * (1 - f); ctx.drawImage(S.glow, pp.x + dc * f * T * 2 + (dr ? sp : 0) - 12, pp.y - 6 - lift * 0.5 + dr * f * T * 2 + (dc ? sp : 0) - 12, 24, 24); }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  for (const s of G.petShots) { ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(S.glow, s.x - 12, s.y - 12, 24, 24); ctx.globalCompositeOperation = 'source-over'; disc(s.x, s.y, 4, '#ffd166'); }
+}
+function drawStatus(time) {
+  for (const e of G.enemies) if (e.chill > 0 && !e.boss) {   // stunned creatures: little stars
+    for (let i = 0; i < 3; i++) { const a = time / 200 + i * 2.1; disc(e.x + Math.cos(a) * 12, e.y - 20 + Math.sin(a) * 4, 2.2, '#ffd166'); }
+  }
+  if (G.rebirth > 0) {   // Phoenix rebirth: rings of fire around you
+    const P = G.P, k = 1 - G.rebirth / 1.6;
+    for (let i = 0; i < 3; i++) { const r = 14 + ((k + i / 3) % 1) * 60; ctx.strokeStyle = `rgba(255,${140 + i * 40},40,${1 - ((k + i / 3) % 1)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(P.x, P.y, r, 0, 6.3); ctx.stroke(); }
+  }
+  ctx.textAlign = 'center'; ctx.font = 'bold 11px monospace';
+  for (const f of G.floats) { const hw = ctx.measureText(f.text).width / 2 + 6, x = Math.min(W - hw, Math.max(hw, f.x)), y = Math.max(16, f.y); ctx.globalAlpha = Math.min(1, f.t * 2); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,12,28,.85)'; ctx.strokeText(f.text, x, y); ctx.fillStyle = f.col; ctx.fillText(f.text, x, y); }
+  ctx.globalAlpha = 1;
 }
 function drawBossBar() {
   const b = G.enemies.find(e => e.boss); if (!b) return;
@@ -145,7 +193,11 @@ function drawPlayer(t) {
   if (P.inv > 0 && Math.floor(t / 90) % 2) return;
   shadow(P.x, P.y + 13, 12);
   drawHero(ctx, P.x, P.y, (p && p.look) || DEFAULT_LOOK, (p && p.color) || '#3b6fe0', P.fx, P.fy, t, P.moving ? Math.abs(Math.sin(t / 70)) * 2 : Math.sin(t / 280) * 0.7);
-  if (P.shield) { ctx.strokeStyle = `rgba(122,214,160,${0.45 + Math.sin(t / 160) * 0.2})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(P.x, P.y + 2, 19, 0, 6.3); ctx.stroke(); }
+  if (P.shield) {   // Shell Turtle's bubble
+    ctx.fillStyle = `rgba(122,214,160,${0.16 + Math.sin(t / 200) * 0.05})`; ctx.beginPath(); ctx.arc(P.x, P.y + 1, 21, 0, 6.3); ctx.fill();
+    ctx.strokeStyle = `rgba(160,240,190,${0.6 + Math.sin(t / 160) * 0.2})`; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(P.x - 8, P.y - 9, 5, 2.5, -0.6, 0, 6.3); ctx.fill();
+  }
   if (P.curse) {
     ctx.strokeStyle = `rgba(155,89,208,${0.5 + Math.sin(t / 90) * 0.25})`; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(P.x, P.y + 4, 21, -1.57, -1.57 + 6.28 * (P.curse.t / P.curse.max)); ctx.stroke();
@@ -251,7 +303,7 @@ export function draw(time) {
     ctx.globalAlpha = 1;
   }
   for (const e of G.enemies) drawEnemy(e, time);
-  if (pet() && G.petPos && G.state !== 'title') { shadow(G.petPos.x, G.petPos.y + 12, 8); drawPet(ctx, pet(), G.petPos.x, G.petPos.y + 12, time); }
+  drawPetOnBoard(time);
   if (G.state !== 'title') drawPlayer(time);
 
   for (const p of G.particles) {
@@ -268,6 +320,7 @@ export function draw(time) {
   }
   ctx.globalAlpha = 1;
 
+  if (G.state !== 'title') drawStatus(time);
   const toast = G.toast;
   if (toast.t > 0) {
     ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';

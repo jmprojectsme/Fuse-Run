@@ -1,14 +1,14 @@
 // The rules: moving, bombs and blasts, getting hurt, picking things up, clearing a stage.
 import { T, C, H, LETHAL, D4, WALL, CRATE, ROCK, FLOOR, MAX_LIVES } from './config.js';
 import { G, keys, earn, bombSkinId, world, stageNo, isBoss } from './state.js';
-import { sfx, startMusic, stopMusic } from './audio.js';
+import { sfx, startMusic, stopMusic, tone, noise } from './audio.js';
 import { theme, curSkin } from './art.js';
 import { burst, puff, debris } from './fx.js';
 import { calcDanger, moveEnemy } from './enemies.js';
 import { zoneTick, zoneDanger, zoneSpeed, onIce, currentAt, bossTick } from './worlds.js';
 import { spawn, saveRun, gameOver } from './level.js';
 import { hud, say, nag, showOverlay, hideOverlay, enter } from './ui.js';
-import { hasPerk, foundCrate } from './pets.js';
+import { hasPerk, foundCrate, pet } from './pets.js';
 
 // ---------- collision & movement ----------
 function blocked(x, y, h, isPlayer) {
@@ -58,14 +58,68 @@ function drift(dir, amt) {   // a current pushes you along its lane
   else if (b && !blocked(P.x, P.y + b * amt, H, true)) { P.y += b * amt; nudge('x', amt * 0.5); }
 }
 
-// the pet trots after you
-function followPet(dt) {
-  const P = G.P, pp = G.petPos || (G.petPos = { x: P.x, y: P.y });
-  const tx = P.x - (P.fx || 0) * 24 - (P.fx || P.fy ? 0 : 18), ty = P.y - (P.fy || 0) * 20;
-  const d = Math.hypot(tx - pp.x, ty - pp.y);
-  if (d > T * 3) { pp.x = tx; pp.y = ty; return; }   // teleported or respawned: catch up at once
-  const k = Math.min(1, dt * 6); pp.x += (tx - pp.x) * k; pp.y += (ty - pp.y) * k;
+// ---------- the pet: follows your path, and uses its skill where you can see it ----------
+export const petSay = (text, col) => { const pp = G.petPos; if (pp) G.floats.push({ x: pp.x, y: pp.y - 30, text, col: col || '#ffd166', t: 1.4 }); };
+function petTick(dt) {
+  const P = G.P, id = pet();
+  if (!id) return;
+  let pp = G.petPos;
+  if (!pp) {
+    pp = G.petPos = { x: P.x - 20, y: P.y, flip: 1, hop: 0, step: 0, idle: 0, cd: 2, tongue: null, breath: 0, bark: 0, dust: 0 };
+    petSay({ chick: 'Coins +20%', bunny: 'Speed +8%', frog: 'Ribbit!', pup: 'Sniff sniff...', owl: '+20 seconds', turtle: 'Shield up!', fox: '+1 flame', dragon: '+1 bomb +1 flame', phoenix: G.phoenixUsed ? 'Resting...' : 'Ready to rise' }[id]);
+  }
+  if (id === 'bunny' && P.moving && (pp.dust -= dt) <= 0) { pp.dust = 0.12; G.particles.push({ x: P.x - (P.fx || 0) * 10, y: P.y + 12, vx: -(P.fx || 0) * 20, vy: -15, t: 0.35, col: '#e8e2d0', s: 4 }); }
+  // breadcrumbs: the pet walks where you walked, so it never cuts through walls
+  const tr = G.trail || (G.trail = []), last = tr[tr.length - 1];
+  if (!last || Math.hypot(P.x - last.x, P.y - last.y) > 4) { tr.push({ x: P.x, y: P.y }); if (tr.length > 40) tr.shift(); }
+  let tx = pp.x, ty = pp.y, acc = 0;
+  for (let i = tr.length - 1; i > 0; i--) { acc += Math.hypot(tr[i].x - tr[i - 1].x, tr[i].y - tr[i - 1].y); if (acc >= 26) { tx = tr[i - 1].x; ty = tr[i - 1].y; break; } }
+  if (Math.hypot(tx - pp.x, ty - pp.y) > T * 3) { pp.x = tx; pp.y = ty; G.trail = [{ x: P.x, y: P.y }]; }   // respawn / teleport
+  const k = Math.min(1, dt * 7), mx = (tx - pp.x) * k, my = (ty - pp.y) * k;
+  pp.x += mx; pp.y += my;
+  const moved = Math.hypot(mx, my);
+  if (Math.abs(mx) > 0.15) pp.flip = mx > 0 ? 1 : -1;
+  if (moved > 0.3) { pp.step += moved * 0.28; pp.idle = 0; } else { pp.idle += dt; pp.step += (Math.round(pp.step / Math.PI) * Math.PI - pp.step) * Math.min(1, dt * 10); }
+  pp.hop = Math.abs(Math.sin(pp.step)) * (moved > 0.3 ? 5 : 0);
+  pp.cd -= dt; pp.bark = Math.max(0, pp.bark - dt); pp.breath = Math.max(0, pp.breath - dt);
+  if (pp.tongue) { pp.tongue.t -= dt; if (pp.tongue.t <= 0) pp.tongue = null; }
+  const pc = Math.floor(P.x / T), pr = Math.floor(P.y / T);
+
+  if (id === 'frog' && pp.cd <= 0) {   // tongue grabs the nearest coin within 3 tiles
+    const coin = G.items.filter(it => it.type === 'coin').map(it => [it, Math.hypot(it.c * T + T / 2 - pp.x, it.r * T + T / 2 - pp.y)]).filter(x => x[1] < T * 3.2).sort((a, b) => a[1] - b[1])[0];
+    if (coin) {
+      const it = coin[0]; pp.tongue = { x: it.c * T + T / 2, y: it.r * T + T / 2, t: 0.3 }; pp.cd = 1.4;
+      G.items = G.items.filter(x => x !== it); pickup(it); tone(900, 0.08, 'sine', 0.05, 300); petSay('+coin', '#a5e67b');
+    } else pp.cd = 0.4;
+  }
+  if (id === 'pup' && pp.cd <= 0) {   // bark and point at the key crate
+    pp.cd = 7;
+    if (!P.key && G.grid[G.keyPos.r][G.keyPos.c] === CRATE) { pp.bark = 1.6; petSay('Woof! Key there!'); tone(520, 0.08, 'square', 0.05, 380); tone(560, 0.08, 'square', 0.05, 400, 0.14); }
+  }
+  if (id === 'fox' && pp.cd <= 0) {   // spit an ember at the nearest creature: it is stunned for 2 seconds
+    const e = G.enemies.filter(e => !e.boss || true).filter(e => !(e.under > 0)).map(e => [e, Math.hypot(e.x - pp.x, e.y - pp.y)]).filter(x => x[1] < T * 4.5).sort((a, b) => a[1] - b[1])[0];
+    if (e) { G.petShots.push({ x: pp.x, y: pp.y - 10, e: e[0], t: 1.2 }); pp.cd = 5; tone(700, 0.15, 'triangle', 0.05, 1400); }
+    else pp.cd = 0.5;
+  }
+  if (id === 'dragon' && pp.cd <= 0) {   // breathe fire ahead: burns the first crate within 2 tiles
+    pp.cd = 0.5;
+    const dc = P.fx || 0, dr = P.fy || (P.fx ? 0 : 1);
+    for (let i = 1; i <= 2; i++) {
+      const c = pc + dc * i, r = pr + dr * i, g = G.grid[r] && G.grid[r][c];
+      if (g === WALL || g === ROCK || g === undefined) break;
+      if (g === CRATE) { pp.breath = 0.6; pp.bdir = [dc, dr]; breakCrate(c, r); for (let j = 0; j < 10; j++) burst(c * T + T / 2, r * T + T / 2, j % 2 ? '#ff8a1c' : '#ffd166', 2); noise(0.3, 0.07, 2000, 300); petSay('Rawr!', '#ff8a1c'); pp.cd = 6; break; }
+    }
+  }
+  // ember shots fly to their target
+  for (const s of G.petShots) {
+    s.t -= dt; if (s.e.dead) { s.t = 0; continue; }
+    const d = Math.hypot(s.e.x - s.x, s.e.y - s.y), v = 260 * dt;
+    if (d <= v + 8) { s.t = 0; s.e.chill = Math.max(s.e.chill || 0, 2); burst(s.e.x, s.e.y, '#ff8a1c', 10); petSay('Stunned!', '#ff8a1c'); tone(300, 0.12, 'square', 0.05, 150); }
+    else { s.x += (s.e.x - s.x) / d * v; s.y += (s.e.y - s.y) / d * v; if (Math.random() < 0.5) G.particles.push({ x: s.x, y: s.y, vx: 0, vy: -10, t: 0.3, col: '#ffb84d', s: 3 }); }
+  }
+  G.petShots = G.petShots.filter(s => s.t > 0);
 }
+function stepFloats(dt) { for (const f of G.floats) { f.t -= dt; f.y -= 22 * dt; } G.floats = G.floats.filter(f => f.t > 0); }
 
 // ---------- bombs & blasts ----------
 export function placeBomb() {
@@ -126,11 +180,11 @@ function explode(b) {
 function die(timeout) {
   const P = G.P;
   if (!timeout && P.shield) {   // Shell Turtle takes the hit
-    P.shield = false; P.inv = 2; G.shake = 0.6; burst(P.x, P.y, '#7ad6a0', 20); say('Shell Turtle blocked the hit!'); sfx.hit(); return;
+    P.shield = false; P.inv = 2; G.shake = 0.6; burst(P.x, P.y, '#7ad6a0', 26); burst(P.x, P.y, '#ffffff', 10); say('Shell Turtle blocked the hit!'); petSay('Clang!', '#7ad6a0'); tone(1500, 0.12, 'square', 0.07, 600); tone(2200, 0.3, 'sine', 0.04, null, 0.05); G.petPos && (G.petPos.shell = 4); return;
   }
   G.lives--; G.shake = 1;
   if (G.lives <= 0 && hasPerk('phoenix') && !G.phoenixUsed) {   // Phoenix: once per game, rise again
-    G.phoenixUsed = true; G.lives = 3; burst(P.x, P.y, '#ff8a1c', 40); burst(P.x, P.y, '#ffd166', 30); say('Phoenix! You rise again with 3 lives'); sfx.key();
+    G.phoenixUsed = true; G.lives = 3; G.rebirth = 1.6; burst(P.x, P.y, '#ff8a1c', 40); burst(P.x, P.y, '#ffd166', 30); say('Phoenix! You rise again with 3 lives'); sfx.key();
   }
   sfx.die(); burst(G.P.x, G.P.y, '#ffffff', 18);
   if (G.lives <= 0) gameOver();
@@ -146,7 +200,7 @@ const burning = (c, r) => G.flames.some(f => f.t > LETHAL && f.c === c && f.r ==
 function pickup(it) {
   const P = G.P;
   if (it.type === 'piece') { foundCrate(); say('Mystery crate! Open it after the game'); sfx.key(); burst(P.x, P.y, '#b77ce8', 16); G.score += 100; return; }
-  if (it.type === 'coin') { earn(hasPerk('chick') ? 6 : 5); sfx.coin(); burst(P.x, P.y, '#ffd166', 6); return; }
+  if (it.type === 'coin') { earn(hasPerk('chick') ? 6 : 5); if (hasPerk('chick')) petSay('+1 \u{1F425}'); sfx.coin(); burst(P.x, P.y, '#ffd166', 6); return; }
   if (it.type === 'skull') {   // a curse: ONE random bad effect for a few seconds (never combined)
     const kinds = ['slow', 'auto', 'fuse'].filter(k => !P.curse || P.curse.type !== k);
     const type = kinds[Math.floor(Math.random() * kinds.length)];
@@ -189,7 +243,7 @@ export function update(dt) {
 
   G.timeLeft -= dt;
   if (G.timeLeft <= 0) { die(true); return; }
-  P.inv = Math.max(0, P.inv - dt); if (P.chill > 0) P.chill -= dt;
+  P.inv = Math.max(0, P.inv - dt); if (P.chill > 0) P.chill -= dt; if (G.rebirth > 0) G.rebirth -= dt;
   G.clock += dt; G.toast.t = Math.max(0, G.toast.t - dt);
   if (P.curse) {
     P.curse.t -= dt;
@@ -198,7 +252,7 @@ export function update(dt) {
   }
   if ((saveTimer += dt) > 5) { saveTimer = 0; saveRun(); }   // autosave while playing
   movePlayer(dt);
-  followPet(dt);
+  petTick(dt); stepFloats(dt);
   { const cur = currentAt(Math.floor(P.x / T), Math.floor(P.y / T)); if (cur) drift(cur, 72 * dt); }
 
   for (const b of G.bombs) {
@@ -221,6 +275,7 @@ export function update(dt) {
   for (const e of G.enemies) {
     if (e.dead) continue;
     e.hurt = Math.max(0, e.hurt - dt);
+    if (e.chill > 0 && !e.boss) e.chill -= dt;   // stunned by Ember Fox
     if (e.boss) bossTick(e, dt);
     if (e.life !== undefined && (e.life -= dt) <= 0) { e.dead = true; puff(e.x, e.y, '200,80,220'); continue; }   // shadow clones fade away
     if (e.under > 0) continue;   // underground: can't hurt or be hurt
@@ -251,7 +306,6 @@ export function update(dt) {
   }
   G.items = G.items.filter(it => {
     if (it.dead) return false;
-    if (it.type === 'coin' && hasPerk('frog') && Math.abs(it.c - pc) <= 1 && Math.abs(it.r - pr) <= 1 && (it.c !== pc || it.r !== pr)) { burst(it.c * T + T / 2, it.r * T + T / 2, '#a5e67b', 6); pickup(it); return false; }   // Froggy's tongue
     if (it.c !== pc || it.r !== pr) return true;
     pickup(it); return false;
   });

@@ -119,7 +119,7 @@ export function startStage() {
   G.clock = 0; G.toast.t = 0;
   build();
   if (hasPerk('owl')) G.timeLeft += 20;
-  G.petPos = null;
+  G.petPos = null; G.trail = null; G.floats = []; G.petShots = [];
   G.state = 'intro'; G.introT = isBoss() || (stageNo() === 1 && zone().hint) ? 3 : 1.9;
   const stars = Math.min(5, 1 + Math.floor((G.level - 1) / 4));
   const z = zone();

@@ -7,15 +7,16 @@ export const RARITY = { common: { name: 'Common', col: '#8fb39a' }, rare: { name
 export const PETS = [
   { id: 'chick', name: 'Sisiw', rarity: 'common', price: 450, perk: 'Coins from crates and creatures +20%' },
   { id: 'bunny', name: 'Bunny', rarity: 'common', price: 550, perk: 'Run 8% faster' },
-  { id: 'frog', name: 'Froggy', rarity: 'common', price: 650, perk: 'Pulls in coins near you' },
-  { id: 'pup', name: 'Puppy', rarity: 'rare', price: 1300, perk: 'Sniffs out the crate with the key' },
+  { id: 'frog', name: 'Froggy', rarity: 'common', price: 650, perk: 'Tongue-grabs coins up to 3 tiles away' },
+  { id: 'pup', name: 'Puppy', rarity: 'rare', price: 1300, perk: 'Barks and points to the crate with the key' },
   { id: 'owl', name: 'Owl', rarity: 'rare', price: 1500, perk: '+20 seconds on every stage' },
   { id: 'turtle', name: 'Shell Turtle', rarity: 'epic', pieces: 6, perk: 'Blocks one hit every stage' },
-  { id: 'fox', name: 'Ember Fox', rarity: 'epic', pieces: 6, perk: 'Start every stage with +1 flame' },
-  { id: 'dragon', name: 'Mini Dragon', rarity: 'legend', pieces: 9, perk: 'Start every stage with +1 bomb and +1 flame' },
+  { id: 'fox', name: 'Ember Fox', rarity: 'epic', pieces: 6, perk: '+1 flame, and spits embers that stun creatures' },
+  { id: 'dragon', name: 'Mini Dragon', rarity: 'legend', pieces: 9, perk: '+1 bomb and +1 flame, and breathes fire that burns crates' },
   { id: 'phoenix', name: 'Phoenix', rarity: 'legend', pieces: 9, perk: 'Once per game, rise again instead of game over' }
 ];
 export const petById = id => PETS.find(p => p.id === id);
+export const FLYERS = ['owl', 'dragon', 'phoenix'];
 export const DRAW = { one: 120, ten: 1080 };
 
 // ---------- profile data ----------
