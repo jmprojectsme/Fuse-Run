@@ -5,6 +5,7 @@ import { placeBomb, detonate } from './game.js';
 import { newGame, nextLevel } from './level.js';
 import { menuOpen, onMainScreen, openMenu, closeMenu, startNew, paintToggles } from './menu.js';
 import { $ } from './ui.js';
+import { openCrates } from './collect.js';
 
 const keyMap = {
   ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down',
@@ -14,7 +15,7 @@ const keyMap = {
 function confirm() {
   ready();
   if (G.state === 'title') startNew();
-  else if (G.state === 'over') newGame();
+  else if (G.state === 'over') { if (G.profile && G.profile.pending > 0) openCrates('over'); else newGame(); }
   else if (G.state === 'clear') nextLevel();
 }
 function toggleMute() {

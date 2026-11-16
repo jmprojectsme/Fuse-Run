@@ -57,6 +57,7 @@
     <p class="who" id="who"></p>
     <button id="mResume" type="button" style="display:none">Resume</button>
     <button id="mNew" type="button">New Game</button>
+    <button id="mCrates" type="button" style="display:none">Mystery crates</button>
     <button data-go="m-shop" type="button">Shop</button>
     <button id="mDaily" data-go="m-daily" type="button">Daily Reward</button>
     <button data-go="m-profile" type="button">Profile</button>
@@ -78,11 +79,23 @@
         <button type="button" data-tab="hat">Hats</button>
         <button type="button" data-tab="face">Face</button>
         <button type="button" data-tab="bomb">Bombs</button>
+        <button type="button" data-tab="pet">Pets</button>
+        <button type="button" data-tab="draw">Draw</button>
       </div>
       <div class="sgrid" id="shopGrid"></div>
     </div>
     <p class="small" id="shopMsg"></p>
     <button class="ghost" data-go="m-main" type="button">Back</button>
+  </section>
+
+  <section class="msec hidden" id="m-crates">
+    <h2 id="crTitle">Mystery crates</h2>
+    <p class="small" id="crSub"></p>
+    <div class="crgrid" id="crGrid"></div>
+    <div class="crshow hidden" id="crShow"><canvas id="crCv" width="200" height="200"></canvas><p id="crText"></p><small>Tap to continue</small></div>
+    <button id="crAll" type="button">Open all</button>
+    <button id="crDone" class="ghost" type="button">Done</button>
+    <button id="crMenu" class="ghost" type="button" style="display:none">Main menu</button>
   </section>
 
   <section class="msec hidden" id="m-daily">
@@ -131,11 +144,11 @@
       <p><b>Built with</b><br>HTML, CSS and vanilla JavaScript</p>
       <p><b>What's new in <span id="newVer"></span></b></p>
       <ul>
-        <li>Every world plays differently: quicksand, ice, lava vents, currents, lightning and teleport pads</li>
-        <li>A unique boss in each world, with its own attacks</li>
-        <li>Boss health bar</li>
-        <li>New creatures: sprouts and shadow clones</li>
-        <li>Frost Cavern balance: fewer ghosts, creatures slip on ice too, and the Frost Golem warns before it freezes</li>
+        <li>Pets! They follow you and each one has a perk</li>
+        <li>Mystery crates hide in crates and drop from bosses: open them after the game for puzzle pieces of Epic and Legendary pets</li>
+        <li>Draw in the Shop: 1 crate or 10 (10 always has a Legendary piece)</li>
+        <li>New heroes: Chef, Pirate and Dino Suit</li>
+        <li>From v1.4: world hazards, a boss in every world, Frost Cavern balance</li>
       </ul>
     </div>
     <button class="ghost" data-go="m-settings" type="button">Back</button>

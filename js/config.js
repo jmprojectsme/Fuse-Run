@@ -20,7 +20,7 @@ export const MAX_LIVES = 5;
 export const FLOOR = 0, WALL = 1, CRATE = 2, ROCK = 3;
 
 export const CATALOG = {
-  style: [{ id: 'classic', name: 'Classic', price: 0 }, { id: 'cat', name: 'Cat', price: 600 }, { id: 'ninja', name: 'Ninja', price: 800 }, { id: 'robot', name: 'Robot', price: 1200 }, { id: 'astro', name: 'Astronaut', price: 1800 }],
+  style: [{ id: 'classic', name: 'Classic', price: 0 }, { id: 'cat', name: 'Cat', price: 600 }, { id: 'ninja', name: 'Ninja', price: 800 }, { id: 'robot', name: 'Robot', price: 1200 }, { id: 'astro', name: 'Astronaut', price: 1800 }, { id: 'chef', name: 'Chef', price: 1000 }, { id: 'pirate', name: 'Pirate', price: 1400 }, { id: 'dino', name: 'Dino Suit', price: 2400 }],
   hat: [{ id: 'none', name: 'No hat', price: 0 }, { id: 'cap', name: 'Cap', price: 150 }, { id: 'party', name: 'Party', price: 250 }, { id: 'cowboy', name: 'Cowboy', price: 400 }, { id: 'wizard', name: 'Wizard', price: 650 }, { id: 'crown', name: 'Crown', price: 1000 }],
   face: [{ id: 'none', name: 'Plain', price: 0 }, { id: 'shades', name: 'Shades', price: 200 }, { id: 'mustache', name: 'Mustache', price: 300 }, { id: 'mask', name: 'Mask', price: 450 }, { id: 'monocle', name: 'Monocle', price: 700 }],
   bomb: [{ id: 'classic', name: 'Classic', price: 0 }, { id: 'star', name: 'Star', price: 250 }, { id: 'pumpkin', name: 'Pumpkin', price: 400 }, { id: 'ice', name: 'Frost', price: 600 }, { id: 'candy', name: 'Candy', price: 800 }, { id: 'gold', name: 'Golden', price: 1500 }]

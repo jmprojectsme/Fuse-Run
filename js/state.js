@@ -6,7 +6,7 @@ export const G = {
   resumeTo: 'play',        // what 'paused' goes back to
   runActive: false,
   level: 1, score: 0, lives: 3, timeLeft: 180, introT: 0, clock: 0,
-  grid: null, zone: null, bombs: [], flames: [], items: [], enemies: [], spikes: [], particles: [], motes: [],
+  grid: null, zone: null, floats: [], petShots: [], trail: null, rebirth: 0, bombs: [], flames: [], items: [], enemies: [], spikes: [], particles: [], motes: [],
   door: { c: 0, r: 0, shown: false }, keyPos: { c: 0, r: 0 }, drops: {},
   P: null,                 // the player
   danger: new Set(),       // tiles that are burning or about to be
@@ -38,6 +38,12 @@ export function fixProfile(p) {
   p.color = typeof p.color === 'string' && /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : '#3b6fe0';
   p.look = Object.assign({ style: 'classic', hat: 'none', face: 'none', bomb: 'classic' }, p.look);
   p.daily = p.daily && typeof p.daily === 'object' ? p.daily : { last: '', streak: 0 };
+  // pets & puzzle pieces (v1.5)
+  p.pets = Array.isArray(p.pets) ? p.pets.filter(x => typeof x === 'string') : [];
+  p.pet = typeof p.pet === 'string' && p.pets.includes(p.pet) ? p.pet : null;
+  const pc = p.pieces && typeof p.pieces === 'object' ? p.pieces : {};
+  p.pieces = {}; for (const k in pc) if (Array.isArray(pc[k])) p.pieces[k] = pc[k].filter(Number.isInteger);
+  p.pending = Number.isInteger(p.pending) && p.pending > 0 ? Math.min(p.pending, 99) : 0;
   return p;
 }
 G.profile = fixProfile(store.get('profile', null));
