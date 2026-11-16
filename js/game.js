@@ -5,6 +5,7 @@ import { sfx, startMusic, stopMusic } from './audio.js';
 import { theme, curSkin } from './art.js';
 import { burst, puff, debris } from './fx.js';
 import { calcDanger, moveEnemy } from './enemies.js';
+import { zoneTick, zoneDanger, zoneSpeed, onIce, currentAt, bossTick } from './worlds.js';
 import { spawn, saveRun, gameOver } from './level.js';
 import { hud, say, nag, showOverlay, hideOverlay, enter } from './ui.js';
 
@@ -27,10 +28,15 @@ function nudge(axis, s) {   // slide round corners: ease towards the middle of t
 }
 function movePlayer(dt) {
   const P = G.P;
-  const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), dy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
-  P.moving = !!(dx || dy);
-  if (!P.moving) return;
-  const total = P.speed * (P.curse && P.curse.type === 'slow' ? 0.5 : 1) * dt, n = Math.ceil(total / 6), s = total / n;   // small sub-steps: no tunnelling, smoother corners
+  let dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), dy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+  const c0 = Math.floor(P.x / T), r0 = Math.floor(P.y / T), ice = onIce(c0, r0);
+  let sliding = false;
+  if (!ice) P.slide = null;
+  else if (!dx && !dy && P.slide) { [dx, dy] = P.slide; sliding = true; }   // on ice you keep going when you let go
+  P.moving = !!(dx || dy) && !sliding;
+  if (!dx && !dy) return;
+  const x0 = P.x, y0 = P.y;
+  const total = P.speed * (P.curse && P.curse.type === 'slow' ? 0.5 : 1) * zoneSpeed(c0, r0) * (P.chill > 0 ? 0.5 : 1) * dt, n = Math.ceil(total / 6), s = total / n;   // small sub-steps: no tunnelling, smoother corners
   for (let i = 0; i < n; i++) {
     let mx = dx, my = dy;
     if (mx && my) {   // diagonal input (joystick): use whichever axis is open, keep the current heading if both are
@@ -42,6 +48,13 @@ function movePlayer(dt) {
     if (mx) { if (!blocked(P.x + mx * s, P.y, H, true)) P.x += mx * s; else nudge('y', s); }
     else if (my) { if (!blocked(P.x, P.y + my * s, H, true)) P.y += my * s; else nudge('x', s); }
   }
+  if (ice && !sliding) P.slide = [P.fx, P.fy];
+  if (sliding && Math.abs(P.x - x0) + Math.abs(P.y - y0) < 0.5) P.slide = null;   // hit something: stop
+}
+function drift(dir, amt) {   // a current pushes you along its lane
+  const P = G.P, [a, b] = dir;
+  if (a && !blocked(P.x + a * amt, P.y, H, true)) { P.x += a * amt; nudge('y', amt * 0.5); }
+  else if (b && !blocked(P.x, P.y + b * amt, H, true)) { P.y += b * amt; nudge('x', amt * 0.5); }
 }
 
 // ---------- bombs & blasts ----------
@@ -157,7 +170,7 @@ export function update(dt) {
 
   G.timeLeft -= dt;
   if (G.timeLeft <= 0) { die(true); return; }
-  P.inv = Math.max(0, P.inv - dt);
+  P.inv = Math.max(0, P.inv - dt); if (P.chill > 0) P.chill -= dt;
   G.clock += dt; G.toast.t = Math.max(0, G.toast.t - dt);
   if (P.curse) {
     P.curse.t -= dt;
@@ -166,9 +179,10 @@ export function update(dt) {
   }
   if ((saveTimer += dt) > 5) { saveTimer = 0; saveRun(); }   // autosave while playing
   movePlayer(dt);
+  { const cur = currentAt(Math.floor(P.x / T), Math.floor(P.y / T)); if (cur) drift(cur, 72 * dt); }
 
   for (const b of G.bombs) {
-    b.t -= dt;
+    if (b.frozen > 0) b.frozen -= dt; else b.t -= dt;
     if (b.t < 0.7 && b.t > 0 && (b.tk = (b.tk === undefined ? 0 : b.tk) - dt) <= 0) { b.tk = 0.1; sfx.tick(); }   // fuse ticks speed up near the end
     if (b.pass && (Math.abs(P.x - (b.c * T + T / 2)) >= T / 2 + H || Math.abs(P.y - (b.r * T + T / 2)) >= T / 2 + H)) b.pass = false;
   }
@@ -178,15 +192,19 @@ export function update(dt) {
   G.bombs = G.bombs.filter(b => !b.dead);
   G.flames.forEach(f => { f.t -= dt; });
   G.flames = G.flames.filter(f => f.t > 0);
+  zoneTick(dt);
 
   const pc = Math.floor(P.x / T), pr = Math.floor(P.y / T);
-  calcDanger();
+  calcDanger(); zoneDanger();
 
   let caught = false;
   for (const e of G.enemies) {
     if (e.dead) continue;
     e.hurt = Math.max(0, e.hurt - dt);
-    moveEnemy(e, dt);
+    if (e.boss) bossTick(e, dt);
+    if (e.life !== undefined && (e.life -= dt) <= 0) { e.dead = true; puff(e.x, e.y, '200,80,220'); continue; }   // shadow clones fade away
+    if (e.under > 0) continue;   // underground: can't hurt or be hurt
+    if (!(e.chill > 0)) moveEnemy(e, dt);
     const ec = Math.floor(e.x / T), er = Math.floor(e.y / T);
     if (!e.hurt && burning(ec, er)) {
       e.hp--;
