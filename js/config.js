@@ -1,7 +1,7 @@
 // Fixed numbers and tables: nothing in here changes while the game runs.
 
 export const VERSION = self.FUSE_VERSION || 'dev';
-export const DEV = { name: 'jmprojectsme' };   // shown in Settings > Developer info: change to the name you want players to see
+export const DEV = { name: 'DigiQube Play' };   // shown in Settings > Developer info: change to the name you want players to see
 
 export const T = 40;          // tile size in game pixels
 export const C = 15;          // columns
