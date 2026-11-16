@@ -6,6 +6,8 @@ import { sfx, ready, startMusic, stopMusic } from './audio.js';
 import { skinArt, drawSkinCard, drawHero, drawIcon } from './art.js';
 import { newGame, saveRun } from './level.js';
 import { hud, $ } from './ui.js';
+import { PETS, RARITY, DRAW, petById, drawPet, drawPuzzle, drawCrate, buyPet, equipPet, buyDraw, piecesOf } from './pets.js';
+import { openCrates } from './collect.js';
 
 export const menu = $('menu');
 const secs = [...menu.querySelectorAll('.msec')], mNew = $('mNew');
@@ -43,6 +45,8 @@ export function showSec(id) {
     $('mResume').style.display = G.state === 'paused' || G.state === 'clear' ? '' : 'none';
     armed = false; clearTimeout(armT); mNew.textContent = 'New Game';
     $('mDaily').textContent = G.profile && !dailyInfo().claimed ? 'Daily Reward ●' : 'Daily Reward';
+    const n = G.profile ? G.profile.pending : 0;
+    $('mCrates').style.display = n ? '' : 'none'; $('mCrates').textContent = `Open mystery crates (${n}) ●`;
   }
   if (id === 'm-profile') { $('pName').value = G.profile ? G.profile.name : ''; pColor = (G.profile && G.profile.color) || pColor; paintProfile(); }
   if (id === 'm-settings') paintToggles();
@@ -61,6 +65,7 @@ export const startNew = () => mNew.click();
 
 menu.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { pendingStart = false; pendingGo = ''; showSec(b.dataset.go); }));
 $('mResume').addEventListener('click', closeMenu);
+$('mCrates').addEventListener('click', () => openCrates('menu'));
 mNew.addEventListener('click', () => {
   ready();
   if (!G.profile) { pendingStart = true; showSec('m-profile'); return; }
@@ -90,7 +95,7 @@ drawIcon($('coinIcon').getContext('2d'), 'coin', 17, 17);
 $('verTag').textContent = `V${VERSION}`; $('verLine').textContent = `Version V${VERSION}`;
 $('devName').textContent = DEV.name; $('devVer').textContent = `V${VERSION}`;
 $('newVer').textContent = `V${VERSION}`;
-[['bomb', 'Bomb', 'Carry one more bomb at a time'], ['range', 'Flame', 'Bigger blast range'], ['speed', 'Shoe', 'Run faster'], ['life', 'Heart', 'One extra life for this stage (max 5)'], ['remote', 'Remote', 'Detonate your bombs yourself (E or Boom)'], ['key', 'Key', 'Hidden in a crate. Needed to open the exit'], ['skull', 'Skull', 'A curse! Slow legs, endless bombs or long fuses for a few seconds'], ['coin', 'Coin', 'Spend coins in the Shop on characters and accessories']].forEach(([t, n, d]) => {
+[['bomb', 'Bomb', 'Carry one more bomb at a time'], ['range', 'Flame', 'Bigger blast range'], ['speed', 'Shoe', 'Run faster'], ['life', 'Heart', 'One extra life for this stage (max 5)'], ['remote', 'Remote', 'Detonate your bombs yourself (E or Boom)'], ['key', 'Key', 'Hidden in a crate. Needed to open the exit'], ['skull', 'Skull', 'A curse! Slow legs, endless bombs or long fuses for a few seconds'], ['coin', 'Coin', 'Spend coins in the Shop on characters, pets and the Draw'], ['piece', 'Mystery crate', 'Holds a puzzle piece of an Epic or Legendary pet. Open it after the game']].forEach(([t, n, d]) => {
   const li = document.createElement('li'), c = document.createElement('canvas'), sp = document.createElement('span'), b = document.createElement('b');
   c.width = c.height = 34; drawIcon(c.getContext('2d'), t, 17, 17);
   b.textContent = n; sp.append(b, ` — ${d}`);
@@ -131,6 +136,7 @@ function drawShopHero(t) {
     g.fillRect(W2 / 2 + Math.cos(a) * (72 + (i % 3) * 8) - s / 2, H2 * 0.5 + Math.sin(a * 1.3) * (52 + i * 3) - s / 2, s, s);
   }
   g.drawImage(skinArt(p.look.bomb).spr, W2 / 2 + 40, H2 * 0.8 - 30, 44, 44);
+  if (p.pet) { g.save(); g.translate(W2 / 2 - 58, H2 * 0.8 + 4); g.scale(1.8, 1.8); drawPet(g, p.pet, 0, 0, t); g.restore(); }
   const pop = 1 + shopPop * 0.14; shopPop = Math.max(0, shopPop - 0.05);
   g.save(); g.translate(W2 / 2, H2 * 0.8 - 45 * pop); g.scale(3 * pop, 3 * pop);
   drawHero(g, 0, 0, p.look, p.color, Math.round(Math.sin(t / 1100)), 1, t, Math.sin(t / 280) * 0.7);
@@ -138,7 +144,7 @@ function drawShopHero(t) {
 }
 function shopTick(t) {
   if (!menuOpen() || $('m-shop').classList.contains('hidden') || !G.profile) { shopRaf = 0; return; }
-  drawShopHero(t); shopRaf = requestAnimationFrame(shopTick);
+  drawShopHero(t); if (shopTab === 'draw') drawTick(t); shopRaf = requestAnimationFrame(shopTick);
 }
 const startShopAnim = () => { if (!shopRaf) shopRaf = requestAnimationFrame(shopTick); };
 
@@ -149,6 +155,8 @@ function renderShop() {
   tabBtns.forEach(b => b.classList.toggle('on', b.dataset.tab === shopTab));
   const grid = $('shopGrid');
   grid.textContent = '';
+  if (shopTab === 'pet') return renderPets(grid, p);
+  if (shopTab === 'draw') return renderDraw(grid, p);
   CATALOG[shopTab].forEach(it => {
     const own = it.price === 0 || p.owned.includes(shopTab + ':' + it.id), eq = p.look[shopTab] === it.id, poor = !own && p.coins < it.price;
     const b = document.createElement('button'), c = document.createElement('canvas');
@@ -163,6 +171,55 @@ function renderShop() {
     grid.appendChild(b);
   });
 }
+// ---------- pets tab: buy Common/Rare, complete Epic/Legendary puzzles, equip ----------
+function renderPets(grid, p) {
+  PETS.forEach(x => {
+    const own = p.pets.includes(x.id), eq = p.pet === x.id, poor = !own && x.price && p.coins < x.price;
+    const b = document.createElement('button'), c = document.createElement('canvas');
+    b.type = 'button'; b.className = `item r-${x.rarity}${eq ? ' eq' : ''}${poor ? ' poor' : ''}`; c.width = 72; c.height = 84;
+    const g = c.getContext('2d');
+    if (x.pieces && !own) drawPuzzle(g, x.id, 72, 84, 0, -1);
+    else { g.translate(36, 70); g.scale(2.2, 2.2); drawPet(g, x.id, 0, 0, 0, false); }
+    b.appendChild(c);
+    const status = own ? `<span class="own">${eq ? 'Following you' : 'Owned · tap to equip'}</span>`
+      : x.price ? `<span class="pricechip">${x.price}</span>` : `<span class="own" style="color:${RARITY[x.rarity].col}">Puzzle ${piecesOf(x.id).length}/${x.pieces}</span>`;
+    b.insertAdjacentHTML('beforeend', `${eq ? '<i class="tag">✓</i>' : ''}<span class="nm">${x.name}</span><span class="rar">${RARITY[x.rarity].name}</span>${status}`);
+    b.addEventListener('click', () => petTap(x));
+    grid.appendChild(b);
+  });
+}
+function petTap(x) {
+  const p = G.profile, own = p.pets.includes(x.id), msg = $('shopMsg');
+  if (own) { equipPet(x.id); msg.textContent = p.pet === x.id ? `${x.name} follows you: ${x.perk}` : `${x.name} stays home`; sfx.coin(); }
+  else if (x.price) {
+    if (buyPet(x.id)) { msg.textContent = `${x.name} joined you! ${x.perk}`; sfx.pickup(); shopPop = 1; }
+    else { const n = Math.ceil((x.price - p.coins) / perStage()); msg.textContent = `${x.name}: ${x.perk}. Need ${x.price - p.coins} more coins (about ${n} stage${n === 1 ? '' : 's'})`; sfx.hit(); }
+  } else msg.textContent = `${x.name}: ${x.perk}. Collect all ${x.pieces} pieces from mystery crates (crates while playing, bosses, or the Draw).`;
+  renderShop(); hud();
+}
+// ---------- draw tab ----------
+function renderDraw(grid, p) {
+  const box = document.createElement('div'); box.className = 'drawbox';
+  const c = document.createElement('canvas'); c.width = 120; c.height = 110; c.id = 'drawCv';
+  box.appendChild(c);
+  box.insertAdjacentHTML('beforeend', `<div class="row2"><button type="button" id="draw1">Draw 1<br><span class="pricechip">${DRAW.one}</span></button><button type="button" id="draw10">Draw 10<br><span class="pricechip">${DRAW.ten}</span></button></div>
+    <p>Each crate gives a puzzle piece (Epic 50%, Legendary 15%), a Common pet (20%), a Rare pet (10%), or a 300-coin jackpot (5%).<br>Draw 10 costs 10% less and always has a Legendary piece. A pet you already own turns into coins.</p>`);
+  grid.appendChild(box);
+  const go = n => {
+    const cost = n === 10 ? DRAW.ten : DRAW.one;
+    if (p.coins < cost) { const k = Math.ceil((cost - p.coins) / perStage()); $('shopMsg').textContent = `Need ${cost - p.coins} more coins (about ${k} stage${k === 1 ? '' : 's'} of play)`; sfx.hit(); return; }
+    const res = buyDraw(n); $('shopMsg').textContent = ''; hud(); openCrates('draw', res);
+  };
+  box.querySelector('#draw1').addEventListener('click', () => go(1));
+  box.querySelector('#draw10').addEventListener('click', () => go(10));
+}
+function drawTick(t) {
+  const c = $('drawCv'); if (!c || !c.isConnected) return;
+  const g = c.getContext('2d'); g.clearRect(0, 0, 120, 110);
+  const gr = g.createRadialGradient(60, 60, 4, 60, 60, 60); gr.addColorStop(0, 'rgba(183,124,232,.5)'); gr.addColorStop(1, 'rgba(183,124,232,0)'); g.fillStyle = gr; g.fillRect(0, 0, 120, 110);
+  drawCrate(g, 60, 60 + Math.sin(t / 300) * 4, 2.2, t, 0);
+}
+
 function shopTap(it) {
   const p = G.profile, key = shopTab + ':' + it.id, own = it.price === 0 || p.owned.includes(key);
   if (!own) {

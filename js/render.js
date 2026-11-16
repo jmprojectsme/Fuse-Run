@@ -4,6 +4,7 @@ import { G } from './state.js';
 import { ctx, view } from './view.js';
 import { S, board, skinArt, curSkin, drawHero, drawIcon, DEFAULT_LOOK } from './art.js';
 import { zone, bossName } from './worlds.js';
+import { pet, hasPerk, drawPet } from './pets.js';
 
 const BOSS_LOOK = { garden: ['#3f9a4a', '#a5e67b'], sand: ['#c9a25a', '#ffe0a0'], ice: ['#4f9fd8', '#e8f8ff'], lava: ['#d9453d', '#ffd166'], current: ['#8a4a9a', '#ffb3e6'], storm: ['#46506e', '#ffe066'], neon: ['#c04fd0', '#4fe0ff'] };
 const ARROW = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -144,6 +145,7 @@ function drawPlayer(t) {
   if (P.inv > 0 && Math.floor(t / 90) % 2) return;
   shadow(P.x, P.y + 13, 12);
   drawHero(ctx, P.x, P.y, (p && p.look) || DEFAULT_LOOK, (p && p.color) || '#3b6fe0', P.fx, P.fy, t, P.moving ? Math.abs(Math.sin(t / 70)) * 2 : Math.sin(t / 280) * 0.7);
+  if (P.shield) { ctx.strokeStyle = `rgba(122,214,160,${0.45 + Math.sin(t / 160) * 0.2})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(P.x, P.y + 2, 19, 0, 6.3); ctx.stroke(); }
   if (P.curse) {
     ctx.strokeStyle = `rgba(155,89,208,${0.5 + Math.sin(t / 90) * 0.25})`; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(P.x, P.y + 4, 21, -1.57, -1.57 + 6.28 * (P.curse.t / P.curse.max)); ctx.stroke();
@@ -243,7 +245,13 @@ export function draw(time) {
   }
 
   drawMarks(time);
+  if (hasPerk('pup') && !P.key && G.grid[G.keyPos.r][G.keyPos.c] === CRATE) {   // Puppy sniffs out the key crate
+    const x = G.keyPos.c * T + T / 2, y = G.keyPos.r * T + T / 2;
+    for (let i = 0; i < 3; i++) { const a = time / 300 + i * 2.1; ctx.globalAlpha = 0.5 + Math.sin(time / 120 + i) * 0.4; disc(x + Math.cos(a) * 13, y + Math.sin(a) * 13, 2.2, '#ffd166'); }
+    ctx.globalAlpha = 1;
+  }
   for (const e of G.enemies) drawEnemy(e, time);
+  if (pet() && G.petPos && G.state !== 'title') { shadow(G.petPos.x, G.petPos.y + 12, 8); drawPet(ctx, pet(), G.petPos.x, G.petPos.y + 12, time); }
   if (G.state !== 'title') drawPlayer(time);
 
   for (const p of G.particles) {

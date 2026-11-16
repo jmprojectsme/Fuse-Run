@@ -284,3 +284,24 @@ body { -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 /* ---------- V1.1.2: shop progress bar ---------- */
 .item .bar { width: 82%; height: 5px; overflow: hidden; border-radius: 3px; background: #0d1126; }
 .item .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ffb84d, #ffd166); }
+
+/* ---------- pets, crates and the draw (v1.5) ---------- */
+.msec .tabs { flex-wrap: wrap; }
+.msec .tabs button { min-width: 30%; }
+.crgrid { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-height: 46vh; overflow: auto; }
+.msec button.crate { width: 72px; height: 72px; padding: 4px; border-radius: 14px; background: #1a1f40; box-shadow: 0 3px 0 #0d1126; }
+.msec button.crate.open { background: #222a55; box-shadow: 0 0 0 2px var(--rc, #38427a); }
+.crate.r-common { --rc: #8fb39a; } .crate.r-rare { --rc: #5b9cff; } .crate.r-epic { --rc: #b77ce8; } .crate.r-legend { --rc: #ffc53d; }
+.crshow { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: rgba(8,10,24,.92); cursor: pointer; animation: crPop .35s ease-out; }
+.crshow.hidden { display: none; }
+.crshow canvas { width: min(70vw, 260px); height: min(70vw, 260px); }
+.crshow p { margin: 0 16px; font-size: 14px; line-height: 1.6; color: var(--ink); text-align: center; }
+.crshow p small { color: var(--dim); font-size: 10px; }
+.crshow > small { color: var(--dim); font-size: 10px; }
+@keyframes crPop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.drawbox { display: flex; flex-direction: column; align-items: center; gap: 8px; grid-column: 1 / -1; }
+.drawbox canvas { width: 120px; height: 110px; }
+.drawbox .row2 { display: flex; gap: 8px; width: 100%; }
+.drawbox .row2 button { flex: 1; }
+.drawbox p { margin: 0; font-size: 9px; line-height: 1.7; color: var(--dim); }
+.item .rar { font-size: 8px; color: var(--rc); }

@@ -8,6 +8,7 @@ import { calcDanger, moveEnemy } from './enemies.js';
 import { zoneTick, zoneDanger, zoneSpeed, onIce, currentAt, bossTick } from './worlds.js';
 import { spawn, saveRun, gameOver } from './level.js';
 import { hud, say, nag, showOverlay, hideOverlay, enter } from './ui.js';
+import { hasPerk, foundCrate } from './pets.js';
 
 // ---------- collision & movement ----------
 function blocked(x, y, h, isPlayer) {
@@ -57,6 +58,15 @@ function drift(dir, amt) {   // a current pushes you along its lane
   else if (b && !blocked(P.x, P.y + b * amt, H, true)) { P.y += b * amt; nudge('x', amt * 0.5); }
 }
 
+// the pet trots after you
+function followPet(dt) {
+  const P = G.P, pp = G.petPos || (G.petPos = { x: P.x, y: P.y });
+  const tx = P.x - (P.fx || 0) * 24 - (P.fx || P.fy ? 0 : 18), ty = P.y - (P.fy || 0) * 20;
+  const d = Math.hypot(tx - pp.x, ty - pp.y);
+  if (d > T * 3) { pp.x = tx; pp.y = ty; return; }   // teleported or respawned: catch up at once
+  const k = Math.min(1, dt * 6); pp.x += (tx - pp.x) * k; pp.y += (ty - pp.y) * k;
+}
+
 // ---------- bombs & blasts ----------
 export function placeBomb() {
   const P = G.P;
@@ -81,6 +91,7 @@ function breakCrate(c, r) {
   if (door.c === c && door.r === r) door.shown = true;
   else if (keyPos.c === c && keyPos.r === r) { items.push({ c, r, type: 'key', grace: 0.7 }); say('The key! Grab it'); }
   else if (drops[r * C + c]) items.push({ c, r, type: drops[r * C + c], grace: 0.7 });
+  else if (G.profile && Math.random() < 0.025) items.push({ c, r, type: 'piece', grace: 0.7 });   // a mystery crate: a puzzle piece of a rare pet
   else if (Math.random() < Math.max(0.12, 0.22 - (G.level - 1) * 0.004)) {
     const q = Math.random();
     items.push({ c, r, grace: 0.7, type: q < 0.24 ? 'range' : q < 0.48 ? 'bomb' : q < 0.68 ? 'speed' : q < 0.8 ? 'skull' : q < 0.9 ? 'remote' : 'life' });
@@ -113,7 +124,14 @@ function explode(b) {
 
 // ---------- getting hurt ----------
 function die(timeout) {
+  const P = G.P;
+  if (!timeout && P.shield) {   // Shell Turtle takes the hit
+    P.shield = false; P.inv = 2; G.shake = 0.6; burst(P.x, P.y, '#7ad6a0', 20); say('Shell Turtle blocked the hit!'); sfx.hit(); return;
+  }
   G.lives--; G.shake = 1;
+  if (G.lives <= 0 && hasPerk('phoenix') && !G.phoenixUsed) {   // Phoenix: once per game, rise again
+    G.phoenixUsed = true; G.lives = 3; burst(P.x, P.y, '#ff8a1c', 40); burst(P.x, P.y, '#ffd166', 30); say('Phoenix! You rise again with 3 lives'); sfx.key();
+  }
   sfx.die(); burst(G.P.x, G.P.y, '#ffffff', 18);
   if (G.lives <= 0) gameOver();
   else {
@@ -127,7 +145,8 @@ const burning = (c, r) => G.flames.some(f => f.t > LETHAL && f.c === c && f.r ==
 // ---------- pickups ----------
 function pickup(it) {
   const P = G.P;
-  if (it.type === 'coin') { earn(5); sfx.coin(); burst(P.x, P.y, '#ffd166', 6); return; }
+  if (it.type === 'piece') { foundCrate(); say('Mystery crate! Open it after the game'); sfx.key(); burst(P.x, P.y, '#b77ce8', 16); G.score += 100; return; }
+  if (it.type === 'coin') { earn(hasPerk('chick') ? 6 : 5); sfx.coin(); burst(P.x, P.y, '#ffd166', 6); return; }
   if (it.type === 'skull') {   // a curse: ONE random bad effect for a few seconds (never combined)
     const kinds = ['slow', 'auto', 'fuse'].filter(k => !P.curse || P.curse.type !== k);
     const type = kinds[Math.floor(Math.random() * kinds.length)];
@@ -149,7 +168,7 @@ function pickup(it) {
 
 function clearStage() {
   const bonus = 500 + Math.ceil(G.timeLeft) * 10;
-  const gain = Math.round(20 + G.level * 4 + (isBoss() ? 60 : 0));
+  const gain = Math.round((20 + G.level * 4 + (isBoss() ? 60 : 0)) * (hasPerk('chick') ? 1.2 : 1));
   if (G.profile) G.profile.stages++;
   earn(gain);
   G.state = 'clear'; G.score += bonus; stopMusic(); sfx.clear(); saveRun();
@@ -179,6 +198,7 @@ export function update(dt) {
   }
   if ((saveTimer += dt) > 5) { saveTimer = 0; saveRun(); }   // autosave while playing
   movePlayer(dt);
+  followPet(dt);
   { const cur = currentAt(Math.floor(P.x / T), Math.floor(P.y / T)); if (cur) drift(cur, 72 * dt); }
 
   for (const b of G.bombs) {
@@ -210,7 +230,7 @@ export function update(dt) {
       e.hp--;
       if (e.hp <= 0) {
         e.dead = true; G.score += e.boss ? 1000 : 100; burst(e.x, e.y, '#ffd166', e.boss ? 40 : 12); sfx.kill();
-        if (e.boss) { earn(50); say('Boss defeated! +50 coins'); }
+        if (e.boss) { earn(50); say('Boss defeated! It dropped a mystery crate'); if (G.profile && G.grid[er][ec] === FLOOR) G.items.push({ c: ec, r: er, type: 'piece', grace: 1 }); }
         else if (Math.random() < 0.45 && G.grid[er][ec] === FLOOR) G.items.push({ c: ec, r: er, type: 'coin', grace: 0 });
       } else { e.hurt = 1.2; sfx.hit(); burst(e.x, e.y, '#ffffff', 8); }
     } else if (P.inv <= 0 && Math.hypot(e.x - P.x, e.y - P.y) < e.rad + 12) { caught = true; break; }
@@ -225,12 +245,13 @@ export function update(dt) {
   // blasts destroy power-ups lying on the floor (not keys or coins)
   for (const it of G.items) {
     it.grace = Math.max(0, (it.grace || 0) - dt);
-    if (!it.grace && it.type !== 'key' && it.type !== 'coin' && burning(it.c, it.r)) {
+    if (!it.grace && it.type !== 'key' && it.type !== 'coin' && it.type !== 'piece' && burning(it.c, it.r)) {
       it.dead = true; burst(it.c * T + T / 2, it.r * T + T / 2, '#8a8fa8', 8);
     }
   }
   G.items = G.items.filter(it => {
     if (it.dead) return false;
+    if (it.type === 'coin' && hasPerk('frog') && Math.abs(it.c - pc) <= 1 && Math.abs(it.r - pr) <= 1 && (it.c !== pc || it.r !== pr)) { burst(it.c * T + T / 2, it.r * T + T / 2, '#a5e67b', 6); pickup(it); return false; }   // Froggy's tongue
     if (it.c !== pc || it.r !== pr) return true;
     pickup(it); return false;
   });

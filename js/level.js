@@ -5,6 +5,7 @@ import { theme, makeSprites, paintBg } from './art.js';
 import { initMotes } from './fx.js';
 import { makeEnemy } from './enemies.js';
 import { buildZone, fixZone, zone } from './worlds.js';
+import { hasPerk } from './pets.js';
 import { sfx, stopMusic } from './audio.js';
 import { hud, showOverlay, enter } from './ui.js';
 
@@ -114,9 +115,11 @@ export function spawn() { const P = G.P; P.x = P.y = T * 1.5; P.inv = 2; P.curse
 
 export function startStage() {
   // power-ups reset every stage; lives were already set by newGame / nextLevel
-  Object.assign(G.P, { speed: BASE_SPEED, max: 1, range: 2, remote: false, key: false, curse: null });
+  Object.assign(G.P, { speed: BASE_SPEED * (hasPerk('bunny') ? 1.08 : 1), max: hasPerk('dragon') ? 2 : 1, range: hasPerk('dragon') || hasPerk('fox') ? 3 : 2, remote: false, key: false, curse: null, shield: hasPerk('turtle') });
   G.clock = 0; G.toast.t = 0;
   build();
+  if (hasPerk('owl')) G.timeLeft += 20;
+  G.petPos = null;
   G.state = 'intro'; G.introT = isBoss() || (stageNo() === 1 && zone().hint) ? 3 : 1.9;
   const stars = Math.min(5, 1 + Math.floor((G.level - 1) / 4));
   const z = zone();
@@ -136,7 +139,7 @@ export function recordRun() {
 
 export function newGame() {
   recordRun(); G.runActive = true;
-  G.level = 1; G.score = 0; G.lives = START_LIVES;
+  G.level = 1; G.score = 0; G.lives = START_LIVES; G.phoenixUsed = false;
   G.P = newPlayer();
   startStage();
 }
@@ -146,23 +149,24 @@ export function gameOver() {
   G.state = 'over'; stopMusic(); recordRun(); clearRun();
   setTimeout(sfx.over, 500);
   const p = G.profile;
-  showOverlay('Game over', `Final score <b>${G.score}</b><br>Reached stage ${world() + 1}-${stageNo()}` + (p ? `<br>Best score <b>${p.bestScore}</b>` : ''), enter('retry'));
+  const crates = p ? p.pending : 0;
+  showOverlay('Game over', `Final score <b>${G.score}</b><br>Reached stage ${world() + 1}-${stageNo()}` + (p ? `<br>Best score <b>${p.bestScore}</b>` : '') + (crates ? `<br><br>You found <b>${crates}</b> mystery crate${crates === 1 ? '' : 's'}!` : ''), enter(crates ? 'open your crates' : 'retry'));
 }
 
 // ---------- save & resume ----------
 const SAVE_V = 1;
 export function saveRun() {
   if (!G.runActive) return;
-  const { state, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P, zone: zn } = G;
-  if (state === 'play' || state === 'paused' || state === 'intro') store.set('run', { v: SAVE_V, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P, zone: zn });
-  else if (state === 'clear') store.set('run', { v: SAVE_V, next: true, level, score });
+  const { state, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P, zone: zn, phoenixUsed: ph } = G;
+  if (state === 'play' || state === 'paused' || state === 'intro') store.set('run', { v: SAVE_V, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P, zone: zn, ph });
+  else if (state === 'clear') store.set('run', { v: SAVE_V, next: true, level, score, ph });
 }
 export const clearRun = () => store.set('run', null);
 
 // a saved run comes from storage, which can be old or damaged: check every piece before trusting it
 const isNum = v => typeof v === 'number' && isFinite(v);
 const isTile = (o, c = 'c', r = 'r') => o && Number.isInteger(o[c]) && Number.isInteger(o[r]) && o[c] > 0 && o[r] > 0 && o[c] < C - 1 && o[r] < R - 1;
-const ITEMS = ['bomb', 'range', 'speed', 'life', 'key', 'remote', 'coin', 'skull'];
+const ITEMS = ['bomb', 'range', 'speed', 'life', 'key', 'remote', 'coin', 'skull', 'piece'];
 function validRun(r) {
   if (!r || r.v !== SAVE_V || !Number.isInteger(r.level) || r.level < 1 || !isNum(r.score)) return false;
   if (r.next) return true;
@@ -177,7 +181,7 @@ export function restoreRun() {
   if (!r) return false;
   if (!validRun(r)) { clearRun(); return false; }
   try {
-    G.level = r.level; G.score = r.score; G.runActive = true;
+    G.level = r.level; G.score = r.score; G.runActive = true; G.phoenixUsed = !!r.ph;
     if (r.next) {   // the app was closed right after a stage was cleared
       G.P = newPlayer(); G.lives = START_LIVES;
       G.state = 'clear';

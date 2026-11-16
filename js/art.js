@@ -156,7 +156,10 @@ export function drawHero(g, x, y, look, color, fx, fy, t, bob) {
   const E_ = (a, b, rx, ry, c) => { g.fillStyle = c; g.beginPath(); g.ellipse(a, b, rx, ry, 0, 0, 6.3); g.fill(); };
   const T_ = (p, c) => { g.fillStyle = c; g.beginPath(); g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.closePath(); g.fill(); };
   const st = look.style, ex = fx * 2, ey = fy * 2, ink = '#10162a', top = -17, bare = look.hat === 'none';
-  R_(x - 8, y + 3, 16, 11, { ninja: '#222a44', robot: '#6d7690', astro: '#e9edf8' }[st] || color);
+  R_(x - 8, y + 3, 16, 11, { ninja: '#222a44', robot: '#6d7690', astro: '#e9edf8', chef: '#f4f6ff', dino: '#5fbf4f' }[st] || color);
+  if (st === 'chef') { R_(x - 8, y + 3, 16, 3, '#e0453b'); D_(x - 3, y + 8, 1.2, '#10162a'); D_(x + 3, y + 8, 1.2, '#10162a'); }
+  if (st === 'pirate') { R_(x - 8, y + 6, 16, 2, '#10162a'); R_(x - 2, y + 5, 4, 4, '#e0a81c'); }
+  if (st === 'dino') { E_(x, y + 9, 5, 4, '#c8f5c0'); }
   R_(x - 8, y + 11, 16, 3, 'rgba(0,0,0,.25)');
   if (st === 'astro') R_(x - 3, y + 5, 6, 5, '#3b6fe0');
   if (st === 'robot') R_(x - 4, y + 5, 8, 4, '#27d3c3');
@@ -179,6 +182,19 @@ export function drawHero(g, x, y, look, color, fx, fy, t, bob) {
     g.strokeStyle = ink; g.lineWidth = 1; g.beginPath();
     g.moveTo(x - 6, y); g.lineTo(x - 13, y - 2); g.moveTo(x - 6, y + 2); g.lineTo(x - 13, y + 3);
     g.moveTo(x + 6, y); g.lineTo(x + 13, y - 2); g.moveTo(x + 6, y + 2); g.lineTo(x + 13, y + 3); g.stroke();
+  } else if (st === 'chef') {
+    D_(x, y - 4, 13, '#f4f6ff'); E_(x, y - 3, 9, 8, '#ffd7b8'); R_(x - 5 + ex, y - 7 + ey, 3, 6, ink); R_(x + 2 + ex, y - 7 + ey, 3, 6, ink);
+    E_(x - 3.5, y + 1, 3.5, 1.8, '#4a2c18'); E_(x + 3.5, y + 1, 3.5, 1.8, '#4a2c18');
+    if (bare) { R_(x - 9, y - 19, 18, 6, '#ffffff'); D_(x - 6, y - 22, 5, '#ffffff'); D_(x, y - 25, 6, '#ffffff'); D_(x + 6, y - 22, 5, '#ffffff'); R_(x - 9, y - 15, 18, 2, '#e6e9f2'); }
+  } else if (st === 'pirate') {
+    D_(x, y - 4, 13, '#c98a5a'); E_(x, y - 3, 9, 8, '#e8b48a'); R_(x + 2 + ex, y - 7 + ey, 3, 6, ink);
+    R_(x - 7, y - 8, 6, 5, ink); g.strokeStyle = ink; g.lineWidth = 1; g.beginPath(); g.moveTo(x - 11, y - 11); g.lineTo(x + 11, y - 4); g.stroke();
+    if (bare) { R_(x - 12, y - 16, 24, 6, '#e0453b'); D_(x + 12, y - 12, 2.5, '#e0453b'); R_(x + 11, y - 11, 3, 6, '#e0453b'); D_(x - 4, y - 13, 1.3, '#fff'); D_(x + 2, y - 13, 1.3, '#fff'); }
+  } else if (st === 'dino') {
+    if (bare) { T_([x - 4, y - 16, x, y - 24, x + 4, y - 16], '#3f9a4a'); T_([x - 11, y - 10, x - 15, y - 18, x - 6, y - 14], '#3f9a4a'); T_([x + 11, y - 10, x + 15, y - 18, x + 6, y - 14], '#3f9a4a'); }
+    D_(x, y - 4, 13, '#5fbf4f'); E_(x, y + 1, 9, 5, '#c8f5c0'); E_(x, y - 7, 7, 5, '#ffd7b8');
+    R_(x - 4 + ex, y - 9 + ey, 3, 4, ink); R_(x + 1 + ex, y - 9 + ey, 3, 4, ink);
+    g.fillStyle = '#fff'; for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(x + i * 4 - 2, y + 3); g.lineTo(x + i * 4, y + 6); g.lineTo(x + i * 4 + 2, y + 3); g.fill(); }
   } else {
     D_(x, y - 4, 13, '#f4f6ff'); E_(x, y - 3, 9, 8, '#ffd7b8'); R_(x - 5 + ex, y - 7 + ey, 3, 6, ink); R_(x + 2 + ex, y - 7 + ey, 3, 6, ink);
     if (bare) { R_(x - 1, y - 19, 2, 7, '#f4f6ff'); D_(x, y - 20, 3.5, '#ff6b81'); }
@@ -200,7 +216,7 @@ export function drawHero(g, x, y, look, color, fx, fy, t, bob) {
 }
 
 // ---------- item icons (game board, How to Play, shop wallet) ----------
-const RING = { bomb: '#b9c4ff', range: '#ffb84d', speed: '#7fb0ff', life: '#ff8fa6', key: '#ffd166', remote: '#7fd6ff', coin: '#ffd166', skull: '#9b59d0' };
+const RING = { piece: '#b77ce8', bomb: '#b9c4ff', range: '#ffb84d', speed: '#7fb0ff', life: '#ff8fa6', key: '#ffd166', remote: '#7fd6ff', coin: '#ffd166', skull: '#9b59d0' };
 export function drawIcon(g, type, x, y) {
   g.fillStyle = '#fff7e6'; g.beginPath(); g.arc(x, y, 13, 0, 6.3); g.fill();
   g.lineWidth = 2.5; g.strokeStyle = RING[type] || '#ffffff'; g.stroke();
@@ -236,6 +252,10 @@ export function drawIcon(g, type, x, y) {
   } else if (type === 'key') {
     g.strokeStyle = '#e0a81c'; g.lineWidth = 3; g.beginPath(); g.arc(x - 4, y - 3, 4.5, 0, 6.3); g.stroke();
     g.fillStyle = '#e0a81c'; g.fillRect(x - 1, y - 1.5, 10, 3); g.fillRect(x + 4, y, 2.5, 5); g.fillRect(x + 8, y, 2.5, 4);
+  } else if (type === 'piece') {   // mystery crate: holds a puzzle piece of a rare pet
+    g.fillStyle = '#6a3fa0'; g.fillRect(x - 8, y - 7, 16, 14); g.fillStyle = '#8f5fd0'; g.fillRect(x - 8, y - 7, 16, 4);
+    g.fillStyle = '#ffd166'; g.fillRect(x - 1.5, y - 7, 3, 14); g.fillRect(x - 8, y - 1.5, 16, 2.5);
+    g.fillStyle = '#fff'; g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', x + 4.5, y + 3.5);
   } else {   // remote
     g.fillStyle = '#3a4466'; g.fillRect(x - 8, y - 1, 16, 9);
     g.fillStyle = '#e0453b'; g.beginPath(); g.arc(x, y + 3.5, 3, 0, 6.3); g.fill();
