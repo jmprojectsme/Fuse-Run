@@ -1,12 +1,13 @@
 // Creatures: how they are made, how they see danger, and how they choose where to go.
 import { T, C, R, D4, LETHAL, WALL, ROCK, CRATE, ENEMY } from './config.js';
 import { G } from './state.js';
+import { zoneSpeed, onIce } from './worlds.js';
 
 export function makeEnemy(type, c, r, L) {
   const s = ENEMY[type], boss = type === 'boss';
   return {
     type, boss, c, r, tc: c, tr: r, dc: 0, dr: 0, x: c * T + T / 2, y: r * T + T / 2,
-    hp: boss ? s.hp + Math.floor(L / 6) : s.hp, hurt: 0, rad: boss ? 22 : 14,
+    hp: boss ? s.hp + Math.floor(L / 6) : s.hp, hpMax: boss ? s.hp + Math.floor(L / 6) : s.hp, hurt: 0, rad: boss ? 22 : 14,
     speed: s.speed * (1 + Math.min(L * 0.03, 0.8)),
     smart: Math.min(0.95, s.smart + L * 0.012),
     sight: s.sight + Math.floor(L / 6),
@@ -57,6 +58,7 @@ function route(e, goal, maxLen) {
 function pickDir(e) {
   const P = G.P, danger = G.danger, pc = Math.floor(P.x / T), pr = Math.floor(P.y / T);
   let step = null;
+  if (!e.boss && (e.dc || e.dr) && onIce(e.c, e.r) && free(e, e.c + e.dc, e.r + e.dr)) { e.tc = e.c + e.dc; e.tr = e.r + e.dr; return; }   // sliding on ice
   if (danger.has(e.r * C + e.c) && Math.random() < e.dodge) step = route(e, (c, r) => !danger.has(r * C + c), 12);   // run from bombs
   else if (G.state === 'play' && Math.random() < e.smart) step = route(e, (c, r) => c === pc && r === pr, e.sight);   // hunt the player
   if (!step) {
@@ -74,7 +76,7 @@ function pickDir(e) {
 // glide towards the target tile; pick a new one on arrival
 export function moveEnemy(e, dt) {
   const tx = e.tc * T + T / 2, ty = e.tr * T + T / 2;
-  const dist = Math.hypot(tx - e.x, ty - e.y), st = e.speed * dt;
+  const dist = Math.hypot(tx - e.x, ty - e.y), st = e.speed * dt * zoneSpeed(e.c, e.r);
   if (dist <= st) { e.x = tx; e.y = ty; e.c = e.tc; e.r = e.tr; pickDir(e); }
   else { e.x += (tx - e.x) / dist * st; e.y += (ty - e.y) / dist * st; }
 }

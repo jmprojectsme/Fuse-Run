@@ -1,7 +1,7 @@
 // Fixed numbers and tables: nothing in here changes while the game runs.
 
 export const VERSION = self.FUSE_VERSION || 'dev';
-export const DEV = { name: 'jmprojectsme' };   // shown in Settings > Developer info: change to the name you want players to see
+export const DEV = { name: 'DigiQube Play' };   // shown in Settings > Developer info: change to the name you want players to see
 
 export const T = 40;          // tile size in game pixels
 export const C = 15;          // columns
@@ -44,6 +44,8 @@ export const ENEMY = {
   ghost:   { speed: 38, smart: 0.4,  sight: 8, dodge: 0.65, hp: 1 },
   bat:     { speed: 78, smart: 0.15, sight: 6, dodge: 0.6, hp: 1 },
   knight:  { speed: 34, smart: 0.55, sight: 8, dodge: 0.3, hp: 2 },
+  sprout:  { speed: 50, smart: 0.2,  sight: 5, dodge: 0.3, hp: 1 },
+  clone:   { speed: 84, smart: 0.65, sight: 9, dodge: 0.5, hp: 1 },
   boss:    { speed: 58, smart: 0.55, sight: 10, dodge: 0.7, hp: 3 }
 };
 

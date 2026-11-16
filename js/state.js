@@ -6,7 +6,7 @@ export const G = {
   resumeTo: 'play',        // what 'paused' goes back to
   runActive: false,
   level: 1, score: 0, lives: 3, timeLeft: 180, introT: 0, clock: 0,
-  grid: null, bombs: [], flames: [], items: [], enemies: [], spikes: [], particles: [], motes: [],
+  grid: null, zone: null, bombs: [], flames: [], items: [], enemies: [], spikes: [], particles: [], motes: [],
   door: { c: 0, r: 0, shown: false }, keyPos: { c: 0, r: 0 }, drops: {},
   P: null,                 // the player
   danger: new Set(),       // tiles that are burning or about to be

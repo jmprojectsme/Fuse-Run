@@ -22,6 +22,7 @@ const SHELL = [
   './js/ui.js',
   './js/enemies.js',
   './js/level.js',
+  './js/worlds.js',
   './js/game.js',
   './js/render.js',
   './js/menu.js',

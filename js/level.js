@@ -4,13 +4,14 @@ import { G, store, saveProfile, world, stageNo, isBoss } from './state.js';
 import { theme, makeSprites, paintBg } from './art.js';
 import { initMotes } from './fx.js';
 import { makeEnemy } from './enemies.js';
+import { buildZone, fixZone, zone } from './worlds.js';
 import { sfx, stopMusic } from './audio.js';
 import { hud, showOverlay, enter } from './ui.js';
 
 const rnd = n => Math.floor(Math.random() * n);
 const BASE_SPEED = 160;
 
-export const newPlayer = () => ({ x: T * 1.5, y: T * 1.5, speed: BASE_SPEED, max: 1, range: 2, inv: 0, fx: 0, fy: 1, axis: 'x', moving: false, key: false, remote: false, curse: null });
+export const newPlayer = () => ({ x: T * 1.5, y: T * 1.5, speed: BASE_SPEED, max: 1, range: 2, inv: 0, fx: 0, fy: 1, axis: 'x', moving: false, key: false, remote: false, curse: null, slide: null, chill: 0, tpLock: null });
 
 // every open tile must be reachable from the start corner
 function allReachable(grid) {
@@ -74,10 +75,11 @@ export function build() {
     G.drops[r * C + c] = t;
   }
 
+  buildZone();
   G.spikes = [];
   for (let n = Math.min(Math.floor((L - 1) * 0.5), 8), g2 = 0; n > 0 && g2++ < 200;) {
     const c = 1 + rnd(C - 2), r = 1 + rnd(R - 2);
-    if (grid[r][c] === FLOOR && c + r > 5 && !G.spikes.some(s => s.c === c && s.r === r)) { G.spikes.push({ c, r, ph: Math.random() * 3.2 }); n--; }
+    if (grid[r][c] === FLOOR && c + r > 5 && !(G.zone.tiles[r * C + c]) && !G.zone.vents.some(v => v.c === c && v.r === r) && !G.zone.pads.some(p => (p.a[0] === c && p.a[1] === r) || (p.b[0] === c && p.b[1] === r)) && !G.spikes.some(s => s.c === c && s.r === r)) { G.spikes.push({ c, r, ph: Math.random() * 3.2 }); n--; }
   }
   G.bombs = []; G.flames = []; G.items = []; G.enemies = []; G.particles = [];
   G.timeLeft = Math.max(isBoss() ? 170 : 130, (isBoss() ? 270 : 210) - L * 3);
@@ -94,6 +96,10 @@ export function build() {
   } else {
     for (let i = 0; i < Math.min(3 + Math.floor(L * 0.4), 12); i++) list.push(pool[rnd(pool.length)]);
   }
+  if (zone().id === 'ice') {   // ice + ghosts that float through crates was too much at once
+    let ghosts = 0, cap = isBoss() ? 2 : 1;
+    for (let i = 0; i < list.length; i++) if (list[i] === 'ghost' && ++ghosts > cap) list[i] = i % 2 ? 'blob' : 'balloon';
+  }
   for (const type of list) {
     for (let g = 0; g < 200; g++) {
       const c = 1 + rnd(C - 2), r = 1 + rnd(R - 2);
@@ -104,16 +110,17 @@ export function build() {
   spawn();
 }
 
-export function spawn() { const P = G.P; P.x = P.y = T * 1.5; P.inv = 2; P.curse = null; P.axis = 'x'; }
+export function spawn() { const P = G.P; P.x = P.y = T * 1.5; P.inv = 2; P.curse = null; P.axis = 'x'; P.slide = null; P.chill = 0; P.tpLock = null; if (G.zone) G.zone.marks = []; }
 
 export function startStage() {
   // power-ups reset every stage; lives were already set by newGame / nextLevel
   Object.assign(G.P, { speed: BASE_SPEED, max: 1, range: 2, remote: false, key: false, curse: null });
   G.clock = 0; G.toast.t = 0;
   build();
-  G.state = 'intro'; G.introT = 1.9;
+  G.state = 'intro'; G.introT = isBoss() || (stageNo() === 1 && zone().hint) ? 3 : 1.9;
   const stars = Math.min(5, 1 + Math.floor((G.level - 1) / 4));
-  showOverlay(`Stage ${world() + 1}-${stageNo()}`, theme().name + '<br><br>Danger ' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + '<br>A key is hidden in a crate' + (isBoss() ? '<br>Boss ahead!' : ''), '');
+  const z = zone();
+  showOverlay(`Stage ${world() + 1}-${stageNo()}`, theme().name + '<br><br>Danger ' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (z.hint ? `<br><b>${z.hint}</b>` : '') + '<br>A key is hidden in a crate' + (isBoss() ? `<br>Boss: <b>${z.boss}</b><br><small>${z.bossHint}</small>` : ''), '');
   sfx.intro();
   hud(); saveRun();
 }
@@ -146,8 +153,8 @@ export function gameOver() {
 const SAVE_V = 1;
 export function saveRun() {
   if (!G.runActive) return;
-  const { state, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P } = G;
-  if (state === 'play' || state === 'paused' || state === 'intro') store.set('run', { v: SAVE_V, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P });
+  const { state, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P, zone: zn } = G;
+  if (state === 'play' || state === 'paused' || state === 'intro') store.set('run', { v: SAVE_V, level, score, lives, timeLeft, clock, grid, items, enemies, spikes, door, keyPos, drops, bombs, P, zone: zn });
   else if (state === 'clear') store.set('run', { v: SAVE_V, next: true, level, score });
 }
 export const clearRun = () => store.set('run', null);
@@ -184,6 +191,7 @@ export function restoreRun() {
       G.spikes = (r.spikes || []).filter(s => isTile(s) && isNum(s.ph));
       G.bombs = (r.bombs || []).filter(b => isTile(b) && isNum(b.t) && isNum(b.range));
       G.flames = []; G.particles = [];
+      G.zone = fixZone(r.zone); if (!G.zone) buildZone();   // runs saved before v1.4 get this world's hazards
       G.P = Object.assign(newPlayer(), r.P); G.P.inv = Math.max(G.P.inv || 0, 1.5); G.P.moving = false;
       paintBg(); initMotes(); G.state = 'paused'; G.resumeTo = 'play';
     }
