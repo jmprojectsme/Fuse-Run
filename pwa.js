@@ -16,7 +16,7 @@
   if ('serviceWorker' in navigator && secure) {
     if (upd) { upd.style.display = ''; label('Check for updates'); }
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then(r => {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => {
         reg = r;
         if (r.waiting && navigator.serviceWorker.controller) onWaiting(r.waiting);
         r.addEventListener('updatefound', () => {

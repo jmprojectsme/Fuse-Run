@@ -1,19 +1,36 @@
 /* Fuse Run service worker.
-   RELEASING AN UPDATE: bump VERSION here AND in game.js, then upload the files.
-   Players keep playing the version they have; they get a dot on Settings and choose when to install the update. */
-const VERSION = '1.2.4';
+   RELEASING AN UPDATE: bump the number in version.js, then upload the files. (The browser notices the
+   change in version.js too, because it is loaded with importScripts.)
+   Players keep playing the version they have; they get a dot on Settings and choose when to install the update.
+   Paths are relative to this file, so the game works from any folder or domain. */
+importScripts('version.js');
+const VERSION = self.FUSE_VERSION;
 const CACHE = 'fuse-run-' + VERSION;
 const SHELL = [
-  '/Fuse-Run/',
-  '/Fuse-Run/index.html',
-  '/Fuse-Run/style.css',
-  '/Fuse-Run/game.js',
-  '/Fuse-Run/pwa.js',
-  '/Fuse-Run/manifest.webmanifest',
-  '/Fuse-Run/icons/icon-192.png',
-  '/Fuse-Run/icons/icon-512.png',
-  '/Fuse-Run/icons/icon-maskable-512.png',
-  '/Fuse-Run/icons/apple-touch-icon.png'
+  './',
+  './index.html',
+  './style.css',
+  './version.js',
+  './pwa.js',
+  './js/main.js',
+  './js/config.js',
+  './js/state.js',
+  './js/view.js',
+  './js/audio.js',
+  './js/art.js',
+  './js/fx.js',
+  './js/ui.js',
+  './js/enemies.js',
+  './js/level.js',
+  './js/game.js',
+  './js/render.js',
+  './js/menu.js',
+  './js/input.js',
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png'
 ];
 
 // Install: download the whole game into a version-named cache (bypassing the browser's HTTP cache).
@@ -41,9 +58,9 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(res => {
-      if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+    caches.open(CACHE).then(cache => cache.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(res => {
+      if (res && res.ok) cache.put(req, res.clone());
       return res;
-    })).catch(() => (req.mode === 'navigate' ? caches.match('/Fuse-Run/index.html') : Response.error()))
+    }))).catch(() => (req.mode === 'navigate' ? caches.match(new URL('./index.html', self.location).href) : Response.error()))
   );
 });
