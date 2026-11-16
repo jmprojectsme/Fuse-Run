@@ -96,6 +96,10 @@ export function build() {
   } else {
     for (let i = 0; i < Math.min(3 + Math.floor(L * 0.4), 12); i++) list.push(pool[rnd(pool.length)]);
   }
+  if (zone().id === 'ice') {   // ice + ghosts that float through crates was too much at once
+    let ghosts = 0, cap = isBoss() ? 2 : 1;
+    for (let i = 0; i < list.length; i++) if (list[i] === 'ghost' && ++ghosts > cap) list[i] = i % 2 ? 'blob' : 'balloon';
+  }
   for (const type of list) {
     for (let g = 0; g < 200; g++) {
       const c = 1 + rnd(C - 2), r = 1 + rnd(R - 2);

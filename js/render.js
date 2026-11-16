@@ -124,6 +124,7 @@ function drawEnemy(e, t) {
     const [body, crown] = BOSS_LOOK[zone().id] || BOSS_LOOK.lava, zid = zone().id;
     if (zid === 'current') { ctx.strokeStyle = body; ctx.lineWidth = 5; for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(x + i * 8, y + 12); ctx.quadraticCurveTo(x + i * 12 + Math.sin(t / 150 + i) * 6, y + 26, x + i * 14, y + 30); ctx.stroke(); } }
     if (zid === 'neon') { ctx.fillStyle = 'rgba(79,224,255,.5)'; ctx.fillRect(x - 24 + Math.sin(t / 41) * 5, y - 4, 48, 4); }
+    if (e.wind > 0) { const k = 1 - e.wind / 1.2; ctx.strokeStyle = `rgba(191,233,255,${0.4 + k * 0.5})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, 20 + k * T * 3.3, 0, 6.3); ctx.stroke(); ctx.globalAlpha = 0.12 + k * 0.15; disc(e.x, e.y, 20 + k * T * 3.3, '#bfe9ff'); ctx.globalAlpha = 1; }
     if (e.chill > 0) { ctx.globalAlpha = 0.5; disc(x, y, 34, '#bfe9ff'); ctx.globalAlpha = 1; }
     disc(x, y, 22, body); disc(x - 8, y - 10, 6, 'rgba(255,255,255,.25)');
     if (zid === 'lava') { ctx.strokeStyle = `rgba(255,200,60,${0.5 + Math.sin(t / 90) * 0.4})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 14, y + 8); ctx.lineTo(x - 6, y + 2); ctx.lineTo(x + 2, y + 12); ctx.lineTo(x + 12, y + 4); ctx.stroke(); }

@@ -165,6 +165,7 @@ export function bossTick(e, dt) {
     return;
   }
   if (e.chill > 0) e.chill -= dt;
+  if (e.wind > 0) { e.wind -= dt; if (e.wind > 0) return; e.bt = 0; e.wound = true; }   // wind-up finished: attack now
   if (e.bt > 0) return;
   const P = G.P;
   if (z === 'garden') {
@@ -178,7 +179,8 @@ export function bossTick(e, dt) {
     const spots = floorTiles((c, r) => G.grid[r][c] === FLOOR && Math.hypot(c - pc(), r - pr()) >= 3 && Math.hypot(c - pc(), r - pr()) <= 6 && !G.bombs.some(b => b.c === c && b.r === r));
     if (spots.length) { const [c, r] = spots[rnd(spots.length)]; e.ux = c; e.uy = r; e.under = 1.6; burst(e.x, e.y, '#d9b46a', 18); noise(0.5, 0.08, 600, 80); }
   } else if (z === 'ice') {
-    e.bt = 6; e.chill = 0.8;
+    if (!e.wound) { e.wind = 1.2; e.chill = 1.2; tone(600, 1.1, 'sine', 0.04, 1800); return; }   // a growing ring warns you first
+    e.wound = false; e.bt = 6; e.chill = 0.8;
     let n = 0;
     for (const b of G.bombs) if (Math.hypot(b.c * T + T / 2 - e.x, b.r * T + T / 2 - e.y) < T * 3.5 && !b.remote) { b.frozen = 2.5; n++; }
     if (Math.hypot(P.x - e.x, P.y - e.y) < T * 2.5) { P.chill = 1.5; }

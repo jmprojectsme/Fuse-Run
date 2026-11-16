@@ -1,7 +1,7 @@
 // Creatures: how they are made, how they see danger, and how they choose where to go.
 import { T, C, R, D4, LETHAL, WALL, ROCK, CRATE, ENEMY } from './config.js';
 import { G } from './state.js';
-import { zoneSpeed } from './worlds.js';
+import { zoneSpeed, onIce } from './worlds.js';
 
 export function makeEnemy(type, c, r, L) {
   const s = ENEMY[type], boss = type === 'boss';
@@ -58,6 +58,7 @@ function route(e, goal, maxLen) {
 function pickDir(e) {
   const P = G.P, danger = G.danger, pc = Math.floor(P.x / T), pr = Math.floor(P.y / T);
   let step = null;
+  if (!e.boss && (e.dc || e.dr) && onIce(e.c, e.r) && free(e, e.c + e.dc, e.r + e.dr)) { e.tc = e.c + e.dc; e.tr = e.r + e.dr; return; }   // sliding on ice
   if (danger.has(e.r * C + e.c) && Math.random() < e.dodge) step = route(e, (c, r) => !danger.has(r * C + c), 12);   // run from bombs
   else if (G.state === 'play' && Math.random() < e.smart) step = route(e, (c, r) => c === pc && r === pr, e.sight);   // hunt the player
   if (!step) {
